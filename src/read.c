@@ -12,21 +12,26 @@ static const char* aason_type_strings[] = {
 
 static void aason_read_error(aason_context* ctx, aason_error error, uint32_t line, uint32_t column, const char* fmt, ...)
 {
-	char buffer[rgs_kib(4)];
+	char buffer[4096];
 
 	ctx->error = error;
 	ctx->error_line = line;
 	ctx->error_column = column;
 
-	if (ctx->error_callback)
+	if (ctx->read_desc->error_callback)
 	{
 		va_list args;
 		va_start(args, fmt);
-		const int64_t len = rgs_format_impl(buffer, sizeof(buffer), fmt, args);
-		(void)len;
+		aason_format_string(ctx, buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
-		ctx->error_callback(ctx->user_data, error, line, column, buffer);
+		ctx->read_desc->error_callback(
+			ctx->user_data,
+			error,
+			line,
+			column,
+			buffer
+		);
 	}
 }
 
@@ -43,7 +48,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 
 	const uint32_t element_index = ctx->stack[stack_depth].element_index;
 	aason_assert(element_index < ctx->element_count);
-	const rgs_sdd_element* object_element = &ctx->elements[element_index];
+	const aason_element* object_element = &ctx->elements[element_index];
 
 	if (stack_depth == 0)
 	{
@@ -81,7 +86,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 				}
 				else
 				{
-					aason_read_error(sdd, aason_error_wrong_type, element->line, element->column,
+					aason_read_error(ctx, aason_error_wrong_type, element->line, element->column,
 						"Element '{s}' has type '{s}' instead of expected type '{s}'",
 						key, aason_type_strings[element->type], aason_type_strings[type]
 					);
@@ -130,7 +135,7 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 		}
 		else
 		{
-			aason_read_error(sdd, aason_error_wrong_type, element->line, element->column,
+			aason_read_error(ctx, aason_error_wrong_type, element->line, element->column,
 				"Array element has type '{s}' instead of expected type '{s}'",
 				aason_type_strings[element->type], aason_type_strings[type]
 			);
@@ -140,15 +145,7 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 	return nullptr;
 }
 
-/*
-	TODO:
-	* SDD parsing has been refactored so that it returns a single allocation.
-	* This makes it simpler for loading code to choose an allocator that may not need to free.
-	* Therefore no terminate or destroy call is necessary.
-	* The original code assumed an SDD object, but now we are hacking around it using scratch mem.
-	* Consider a different approach that uses internal structs for tokenise, validate, and finalise.
-*/
-aason_context* aason_read(rgs_allocator allocator, char* src, int64_t size, uint32_t tab_size, aason_error_callback callback, void* user_data)
+aason_context* aason_read(const aason_read_desc* desc)
 {
 	aason_assert(src);
 	aason_assert(size >= 0);

@@ -41,7 +41,7 @@ static const char* aason_token_type_strings[] = {
 	"{",
 	"}"
 };
-static_assert(rgs_countof(aason_token_type_strings) == aason_token_type_count);
+static_assert(sizeof(aason_token_type_strings) / sizeof(const char*) == aason_token_type_count);
 
 enum
 {
@@ -127,22 +127,39 @@ static bool aason_tokenise_is_valid_identifier_char(char c)
 
 static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error error, const char* fmt, ...)
 {
-	char buffer[rgs_kib(4)];
+	char buffer[4096];
 
 	tokeniser->ctx->error = error;
 	tokeniser->ctx->error_line = tokeniser->line;
 	tokeniser->ctx->error_column = tokeniser->column;
 
-	if (tokeniser->ctx->error_callback)
+	if (tokeniser->ctx->read_desc->error_callback)
 	{
 		va_list args;
 		va_start(args, fmt);
-		const int64_t len = rgs_format_impl(buffer, sizeof(buffer), fmt, args);
-		(void)len;
+		aason_format_string(tokeniser->ctx, buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
-		tokeniser->ctx->error_callback(tokeniser->ctx->user_data, error, tokeniser->line, tokeniser->column, buffer);
+		tokeniser->ctx->read_desc->error_callback(
+			tokeniser->ctx->user_data,
+			error,
+			tokeniser->line,
+			tokeniser->column,
+			buffer
+		);
 	}
+}
+
+static int64_t aason_utf8_byte_count(char c)
+{
+	if ((c & 0b11110000) == 0b11110000)
+		return 4;
+	else if ((c & 0b11100000) == 0b11100000)
+		return 3;
+	else if ((c & 0b11000000) == 0b11000000)
+		return 2;
+	else
+		return 1;
 }
 
 static char aason_tokenise_get_char(aason_tokeniser* tokeniser)
@@ -169,7 +186,7 @@ static char aason_tokenise_get_char(aason_tokeniser* tokeniser)
 	
 		// This should handle simple UTF-8 but we need a way to determine non-printable characters
 		c = *tokeniser->current;
-		const int64_t byte_count = rgs_utf8_byte_count(c);
+		const int64_t byte_count = aason_utf8_byte_count(c);
 		tokeniser->next += byte_count;
 	
 		if (c < 32)
@@ -252,7 +269,7 @@ static char aason_tokenise_skip_comments(aason_tokeniser* tokeniser)
 			}
 			else if (c == aason_tokenise_char_eof)
 			{
-				aason_tokenise_error(ctx, aason_error_invalid_char, "Unexpected end-of-file");
+				aason_tokenise_error(tokeniser, aason_error_invalid_char, "Unexpected end-of-file");
 				c = aason_tokenise_char_error;
 				break;
 			}
@@ -316,7 +333,7 @@ static aason_token_type aason_tokenise_parse_str(aason_tokeniser* tokeniser)
 		}
 		else if (c == aason_tokenise_char_eof)
 		{
-			aason_tokenise_error(tokeniser, rgs_sdd_error_invalid_char, "Unexpected end-of-file");
+			aason_tokenise_error(tokeniser, aason_error_invalid_char, "Unexpected end-of-file");
 			return aason_token_type_error;
 		}
 		else if (c == aason_tokenise_char_error)
@@ -352,7 +369,7 @@ static aason_token_type aason_tokenise_parse_hash(aason_tokeniser* tokeniser)
 	{
 		if (!aason_tokenise_is_valid_hex_char(c))
 		{
-			aason_tokenise_error(tokeniser, rgs_sdd_error_invalid_char, "Character '{c}' is not a valid hexadecimal character");
+			aason_tokenise_error(tokeniser, aason_error_invalid_char, "Character '{c}' is not a valid hexadecimal character");
 			return aason_token_type_error;
 		}
 
@@ -449,7 +466,34 @@ static aason_token_type aason_tokenise_parse_identifier(aason_tokeniser* tokenis
 	//rgs_unreachable();
 }
 
-static aason_token* aason_tokenise(aason_context* ctx, char* buffer, int64_t size, uint32_t tab_size)
+typedef struct
+{
+	aason_token*	tokens;
+	uint32_t		count;
+	uint32_t		capacity;
+} aason_tokens;
+
+static aason_token* aason_allocate_token(aason_context* ctx, aason_tokens* tokens)
+{
+	if (tokens->count == tokens->capacity)
+	{
+		if (tokens->count)
+			tokens->capacity <<= 1;
+		else
+			tokens->capacity = 64;
+
+		tokens->tokens = ctx->read_desc->scratch(
+			ctx->read_desc->scratch_data,
+			tokens->tokens,
+			sizeof(aason_token) * tokens->count,
+			sizeof(aason_token) * tokens->capacity
+		);
+	}
+
+	return &tokens->tokens[tokens->count++];
+}
+
+static aason_tokens aason_tokenise(aason_context* ctx, char* buffer, int64_t size, uint32_t tab_size)
 {
 	aason_tokeniser tokeniser = {
 		.ctx			= ctx,
@@ -464,7 +508,7 @@ static aason_token* aason_tokenise(aason_context* ctx, char* buffer, int64_t siz
 		.next_column	= 1
 	};
 
-	aason_token* tokens = nullptr;
+	aason_tokens tokens = {};
 	aason_tokenise_get_char(&tokeniser);
 
 	for (;;)
@@ -473,7 +517,7 @@ static aason_token* aason_tokenise(aason_context* ctx, char* buffer, int64_t siz
 		if (c == '/')
 			c = aason_tokenise_skip_comments(&tokeniser);
 
-		aason_token* token = rgs_scratch_array_emplace(tokens);
+		aason_token* token = aason_allocate_token(ctx, &tokens);
 		token->count = 0;
 		token->begin = tokeniser.current;
 		token->line = tokeniser.line;

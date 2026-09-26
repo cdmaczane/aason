@@ -1,6 +1,11 @@
-#define AASON_KEY_MAX_LEN		32
-#define AASON_ENUM_MAX_LEN		32
+#pragma once
+
+#include <stdint.h>
+#include <stdbool.h>
+
 #define AASON_WRITE_BUFFER_SIZE	(RGS_PAGE_SIZE - sizeof(aason_context))
+
+typedef struct aason_context aason_context;
 
 typedef enum
 {
@@ -8,18 +13,12 @@ typedef enum
 	aason_required
 } aason_flags;
 
-// TODO: Add flags type that separates enum values using '|'
 typedef enum
 {
-	aason_type_str = 1,
-	aason_type_int,
-	aason_type_bool,
-	aason_type_hash,
-	aason_type_enum,
-	aason_type_float,
-	aason_type_array,
-	aason_type_object
-} aason_type;
+	aason_base_bin,
+	aason_base_dec,
+	aason_base_hex
+} aason_base;
 
 typedef enum
 {
@@ -46,94 +45,26 @@ typedef enum
 	aason_error_buffer_too_small
 } aason_error;
 
-typedef struct
-{
-	aason_type			type;
-	uint32_t			key_offset;
-	uint32_t			key_len;
-	uint32_t			line;
-	uint32_t			column;
-
-	union
-	{
-		struct
-		{
-			uint32_t	count;
-			uint32_t	first_child;
-		} array_value;
-
-		struct
-		{
-			uint32_t	count;
-			uint32_t	first_child;
-		} object_value;
-
-		struct
-		{
-			uint32_t	offset;
-			uint32_t	len;
-		} str_value;
-
-		struct
-		{
-			uint32_t	offset;
-			uint32_t	len;
-		} enum_value;
-
-		int64_t			int_value;
-		bool			bool_value;
-		uint32_t		hash_value;
-		float			float_value;
-	};
-} aason_element;
-static_assert(sizeof(aason_element) == 32);
-
-typedef struct
-{
-	uint32_t element_index;
-	uint32_t array_index;
-} aason_stack_entry;
-
+typedef void* (*aason_allocator)(void* user_data, void* ptr, size_t old_size, size_t new_size);
+typedef void (*aason_format)(char* out, size_t size, const char* format, va_list args);
 typedef void (*aason_error_callback)(void* user_data, aason_error error, uint32_t line, uint32_t column, const char* str);
 typedef void (*aason_write_callback)(void* user_data, const char* str, int64_t size);
 
-// TODO: Allow mechanism to get line and column of last element read for external error handling.
-// TODO: Save error message for when not using error callbacks.
-// TODO: Can probably compact as some data will no longer be required once error has occurred.
-// TODO: Consider renaming elements within objects to "fields".
 typedef struct
 {
-	char*							buffer;
-	uint16_t						error;
-	bool							reading;
-	uint32_t						stack_depth;
-	void*							user_data;
+	const char*				source;
+	size_t					length;
+	uint32_t				tab_size;
+	aason_error_callback	error_callback;
+	void*					error_data;
+	aason_allocator			allocator;
+	void*					allocator_data;
+	aason_allocator			scratch;
+	void*					scratch_data;
+	aason_format			format_string;
+} aason_read_desc;
 
-	union
-	{
-		struct
-		{
-			aason_stack_entry*		stack;
-			aason_element*			elements;
-			uint32_t				element_count;
-			uint32_t				max_stack_depth;
-			uint32_t				error_line;
-			uint32_t				error_column;
-			aason_error_callback	error_callback;
-		};
-
-		struct
-		{
-			bool					first;
-			bool					first_line;
-			int64_t					offset;
-			aason_write_callback	write_str;
-		};
-	};
-} aason_context;
-static_assert(sizeof(aason_context) == 64);
-
-aason_context* aason_read(rgs_allocator allocator, char* src, int64_t size, uint32_t tab_size, aason_error_callback callback, void* user_data);
+aason_context* aason_read(const aason_read_desc* desc);
 aason_context* aason_write(aason_write_callback callback, void* user_data);
 void aason_destroy(aason_context* ctx);
 bool aason_reading(const aason_context* ctx);

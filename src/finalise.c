@@ -2,7 +2,7 @@ typedef struct
 {
 	aason_context*	ctx;
 	char*			begin;
-	aason_token*	tokens;
+	aason_tokens*	tokens;
 	uint32_t		token_index;
 	uint32_t		element_index;
 	jmp_buf			jmp_ctx;
@@ -10,21 +10,26 @@ typedef struct
 
 static void aason_finalise_error(aason_finaliser* finaliser, aason_error error, const char* fmt, ...)
 {
-	char buffer[rgs_kib(4)];
+	char buffer[4096];
 
 	finaliser->ctx->error = error;
-	finaliser->ctx->error_line = finaliser->tokens[finaliser->token_index].line;
-	finaliser->ctx->error_column = finaliser->tokens[finaliser->token_index].column;
+	finaliser->ctx->error_line = finaliser->tokens->tokens[finaliser->token_index].line;
+	finaliser->ctx->error_column = finaliser->tokens->tokens[finaliser->token_index].column;
 
-	if (finaliser->ctx->error_callback)
+	if (finaliser->ctx->read_desc->error_callback)
 	{
 		va_list args;
 		va_start(args, fmt);
-		const int64_t len = rgs_format_impl(buffer, sizeof(buffer), fmt, args);
-		(void)len;
+		aason_format_string(finaliser->ctx, buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
-		finaliser->ctx->error_callback(finaliser->ctx->user_data, error, finaliser->ctx->error_line, finaliser->ctx->error_column, buffer);
+		finaliser->ctx->read_desc->error_callback(
+			finaliser->ctx->user_data,
+			error,
+			finaliser->ctx->error_line,
+			finaliser->ctx->error_column,
+			buffer
+		);
 	}
 
 	longjmp(finaliser->jmp_ctx, 1);
@@ -32,9 +37,9 @@ static void aason_finalise_error(aason_finaliser* finaliser, aason_error error, 
 
 static aason_token* aason_finalise_get_next_token(aason_finaliser* finaliser)
 {
-	aason_assert(finaliser->token_index < rgs_scratch_array_count(finaliser->tokens));
+	aason_assert(finaliser->token_index < finaliser->tokens->count);
 
-	return &finaliser->tokens[finaliser->token_index++];
+	return &finaliser->tokens->tokens[finaliser->token_index++];
 }
 
 static aason_element* aason_finalise_allocate_elements(aason_finaliser* finaliser, uint32_t count)
@@ -57,11 +62,35 @@ static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* to
 	token->end[-1] = 0;
 }
 
+static bool aason_from_string_bin(const char* str, int64_t* value)
+{
+	//rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_bin) < 0
+	return false;
+}
+
+static bool aason_from_string_dec(const char* str, int64_t* value)
+{
+	//rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_dec) < 0
+	return false;
+}
+
+static bool aason_from_string_hex(const char* str, int64_t* value)
+{
+	//rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_hex) < 0
+	return false;
+}
+
+static bool aason_from_string_hash(const char* str, uint32_t* value)
+{
+	//rgs_from_string_u32(token->begin + 1, &element->hash_value, rgs_int_base_hex);
+	return false;
+}
+
 static void aason_finalise_parse_bin(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_int;
 
-	if (rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_bin) < 0)
+	if (!aason_from_string_bin(token->begin, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Binary integer too large");
 }
 
@@ -69,7 +98,7 @@ static void aason_finalise_parse_dec(aason_finaliser* finaliser, aason_token* to
 {
 	element->type = aason_type_int;
 
-	if (rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_dec) < 0)
+	if (!aason_from_string_dec(token->begin, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Decimal integer too large");
 }
 
@@ -77,14 +106,14 @@ static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* to
 {
 	element->type = aason_type_int;
 
-	if (rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_hex) < 0)
-		aason_finalise_error(ctx, aason_error_out_of_range, "Hexadecimal integer too large");
+	if (!aason_from_string_hex(token->begin, &element->int_value))
+		aason_finalise_error(finaliser, aason_error_out_of_range, "Hexadecimal integer too large");
 }
 
 static void aason_finalise_parse_hash(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_hash;
-	rgs_from_string_u32(token->begin + 1, &element->hash_value, rgs_int_base_hex);
+	aason_from_string_hash(token->begin + 1, &element->hash_value);
 }
 
 static void aason_finalise_parse_true(aason_finaliser* finaliser, aason_token* token, aason_element* element)
@@ -99,18 +128,36 @@ static void aason_finalise_parse_false(aason_finaliser* finaliser, aason_token* 
 	element->bool_value = false;
 }
 
+static bool aason_from_string_float(const char* str, float* value)
+{
+	//rgs_from_string_float(token->begin, &element->float_value) < 0
+	return false;
+}
+
 static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_float;
 
-	if (rgs_from_string_float(token->begin, &element->float_value) < 0)
+	if (!aason_from_string_float(token->begin, &element->float_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Floating point number out of range");
+}
+
+static uint32_t aason_fnv32(const char* str, size_t size)
+{
+	uint32_t hash = 2166136261;
+	while (size--)
+	{
+		hash ^= *str++;
+		hash *= 16777619;
+	}
+
+	return hash;
 }
 
 static void aason_finalise_parse_hash_str(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_hash;
-	element->hash_value = rgs_hash_mem_fnv32(token->begin + 2, token->end - token->begin - 3);
+	element->hash_value = aason_fnv32(token->begin + 2, token->end - token->begin - 3);
 }
 
 static void aason_finalise_parse_enum(aason_finaliser* finaliser, aason_token* token, aason_element* element)
@@ -220,7 +267,7 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 		children[i].line = self->line;
 		children[i].column = self->column;
 
-		sdd_token* token = aason_finalise_get_next_token(finaliser);
+		aason_token* token = aason_finalise_get_next_token(finaliser);
 		aason_finalise_parse_element(finaliser, self, token, &children[i], false);
 
 		if (i < field_count - 1)
@@ -230,7 +277,7 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 	aason_finalise_get_next_token(finaliser); // Skip leave object token
 }
 
-static bool aason_finalise(aason_context* ctx, char* buffer, aason_token* tokens)
+static bool aason_finalise(aason_context* ctx, char* buffer, aason_tokens* tokens)
 {
 	aason_finaliser finaliser = {
 		.ctx	= ctx,
