@@ -7,7 +7,7 @@ static char* aason_write_new_line(aason_context* ctx, char* out)
 
 	if (ctx->first_line)
 	{
-		rgs_assert(ctx->stack_depth == 0);
+		aason_assert(ctx->stack_depth == 0);
 
 		ctx->first_line = false;
 	}
@@ -38,7 +38,7 @@ static void aason_write_str(aason_context* ctx, const char* str, int64_t size)
 
 static char* aason_write_alloc(aason_context* ctx, int64_t size)
 {
-	rgs_assert(size <= RGS_SDD_WRITE_BUFFER_SIZE);
+	aason_assert(size <= RGS_SDD_WRITE_BUFFER_SIZE);
 
 	if (ctx->offset + size > RGS_SDD_WRITE_BUFFER_SIZE)
 		aason_write_flush(ctx);
@@ -51,9 +51,9 @@ static char* aason_write_alloc(aason_context* ctx, int64_t size)
 
 static char* aason_write_add_array_element(aason_context* ctx, int64_t value_len, int64_t extra_len)
 {
-	rgs_assert(ctx);
-	rgs_assert(value_len >= 0);
-	rgs_assert(extra_len >= 0);
+	aason_assert(ctx);
+	aason_assert(value_len >= 0);
+	aason_assert(extra_len >= 0);
 
 	const uint32_t stack_depth = ctx->stack_depth;
 	const int64_t len = value_len + stack_depth + extra_len + !ctx->first + 1;
@@ -63,17 +63,17 @@ static char* aason_write_add_array_element(aason_context* ctx, int64_t value_len
 
 static char* aason_write_add_object_element(aason_context* ctx, const char* key, int64_t value_len, int64_t extra_len)
 {
-	rgs_assert(ctx);
-	rgs_assert(key);
-	rgs_assert(*key);
-	rgs_assert(value_len >= 0);
-	rgs_assert(extra_len >= 0);
+	aason_assert(ctx);
+	aason_assert(key);
+	aason_assert(*key);
+	aason_assert(value_len >= 0);
+	aason_assert(extra_len >= 0);
 
 	const bool first = ctx->first;
 	const bool first_line = ctx->first_line;
 	const uint32_t stack_depth = ctx->stack_depth;
 	const int64_t key_len = strlen(key);
-	rgs_assert(key_len <= RGS_SDD_KEY_MAX_LEN);
+	aason_assert(key_len <= RGS_SDD_KEY_MAX_LEN);
 
 	const int64_t len = key_len + value_len + stack_depth + extra_len + !first + !first_line + 2;
 	char* out = aason_write_new_line(ctx, aason_write_alloc(ctx, len));
@@ -87,7 +87,7 @@ static char* aason_write_add_object_element(aason_context* ctx, const char* key,
 
 aason_context* aason_write(aason_write_callback callback, void* user_data)
 {
-	rgs_assert(callback);
+	aason_assert(callback);
 
 	aason_context* ctx = rgs_alloc(RGS_PAGE_SIZE, RGS_PAGE_SIZE);
 	ctx->buffer = (char*)(ctx + 1);
@@ -103,15 +103,6 @@ aason_context* aason_write(aason_write_callback callback, void* user_data)
 	return ctx;
 }
 
-// TODO: Move
-void aason_destroy(aason_context* ctx)
-{
-	if (!ctx->reading)
-		aason_write_flush(ctx);
-
-	rgs_free(ctx);
-}
-
 void aason_write_array_enter(aason_context* ctx, const char* key)
 {
 	char* out = aason_write_add_object_element(ctx, key, 0, 1);
@@ -123,8 +114,8 @@ void aason_write_array_enter(aason_context* ctx, const char* key)
 
 void aason_write_array_leave(aason_context* ctx)
 {
-	rgs_assert(ctx);
-	rgs_assert(ctx->stack_depth > 0);
+	aason_assert(ctx);
+	aason_assert(ctx->stack_depth > 0);
 
 	const int64_t stack_depth = --ctx->stack_depth;
 
@@ -158,8 +149,8 @@ void aason_write_array_object_leave(aason_context* ctx)
 
 void aason_write_array_str(aason_context* ctx, const char* value)
 {
-	rgs_assert(value);
-	rgs_assert(*value);
+	aason_assert(value);
+	aason_assert(*value);
 
 	const int64_t len = strlen(value);
 	*aason_write_add_array_element(ctx, 1, 0) = '"';
@@ -193,13 +184,13 @@ void aason_write_array_float(aason_context* ctx, float value)
 
 void aason_write_array_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count)
 {
-	rgs_assert(strings);
-	rgs_assert(value >= 0);
-	rgs_assert(count > 0);
-	rgs_assert(value < count);
+	aason_assert(strings);
+	aason_assert(value >= 0);
+	aason_assert(count > 0);
+	aason_assert(value < count);
 
 	const int64_t len = strlen(strings[value]);
-	rgs_assert(len <= RGS_SDD_ENUM_MAX_LEN);
+	aason_assert(len <= RGS_SDD_ENUM_MAX_LEN);
 
 	char* out = aason_write_add_array_element(ctx, len, 0);
 	memcpy(out, strings[value], len);
@@ -214,8 +205,8 @@ void aason_write_object_enter(aason_context* ctx, const char* key)
 
 void aason_write_object_leave(aason_context* ctx)
 {
-	rgs_assert(ctx);
-	rgs_assert(ctx->stack_depth > 0);
+	aason_assert(ctx);
+	aason_assert(ctx->stack_depth > 0);
 
 	const int64_t stack_depth = --ctx->stack_depth;
 
@@ -239,8 +230,8 @@ void aason_write_object_leave(aason_context* ctx)
 
 void aason_write_object_str(aason_context* ctx, const char* key, const char* value)
 {
-	rgs_assert(value);
-	rgs_assert(*value);
+	aason_assert(value);
+	aason_assert(*value);
 
 	const int64_t len = strlen(value);
 	char* out = aason_write_add_object_element(ctx, key, len, 2); // ""
@@ -277,10 +268,10 @@ void aason_write_object_float(aason_context* ctx, const char* key, float value)
 
 void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value, const char** strings, int32_t count)
 {
-	rgs_assert(strings);
-	rgs_assert(value >= 0);
-	rgs_assert(count > 0);
-	rgs_assert(value < count);
+	aason_assert(strings);
+	aason_assert(value >= 0);
+	aason_assert(count > 0);
+	aason_assert(value < count);
 
 	const int64_t len = strlen(strings[value]);
 	char* out = aason_write_add_object_element(ctx, key, len, 0);

@@ -32,14 +32,14 @@ static void aason_finalise_error(aason_finaliser* finaliser, aason_error error, 
 
 static aason_token* aason_finalise_get_next_token(aason_finaliser* finaliser)
 {
-	rgs_assert(finaliser->token_index < rgs_scratch_array_count(finaliser->tokens));
+	aason_assert(finaliser->token_index < rgs_scratch_array_count(finaliser->tokens));
 
 	return &finaliser->tokens[finaliser->token_index++];
 }
 
 static aason_element* aason_finalise_allocate_elements(aason_finaliser* finaliser, uint32_t count)
 {
-	rgs_assert(finaliser->element_index + count <= finaliser->ctx->element_count);
+	aason_assert(finaliser->element_index + count <= finaliser->ctx->element_count);
 
 	aason_element* alloc = &finaliser->ctx->elements[finaliser->element_index];
 	finaliser->element_index += count;
@@ -183,7 +183,7 @@ static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* 
 
 	for (uint32_t i = 0; i < array_count; ++i)
 	{
-		sdd_token* token = aason_finalise_get_next_token(finaliser);
+		aason_token* token = aason_finalise_get_next_token(finaliser);
 
 		children[i].key_offset = 0;
 		children[i].key_len = 0;
@@ -254,7 +254,7 @@ static bool aason_finalise(aason_context* ctx, char* buffer, aason_token* tokens
 		aason_token* token = aason_finalise_get_next_token(&finaliser);
 		aason_finalise_parse_element(&finaliser, self, token, element, false);
 	
-		rgs_assert(finaliser.element_index == ctx->element_count);
+		aason_assert(finaliser.element_index == ctx->element_count);
 
 		return true;
 	}

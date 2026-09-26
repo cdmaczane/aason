@@ -32,17 +32,17 @@ static void aason_read_error(aason_context* ctx, aason_error error, uint32_t lin
 
 static const aason_element* aason_read_find_object_element(aason_context* ctx, const char* key, aason_flags flags, aason_type type)
 {
-	rgs_assert(ctx);
-	rgs_assert(key);
-	rgs_assert(*key);
+	aason_assert(ctx);
+	aason_assert(key);
+	aason_assert(*key);
 
 	const int64_t key_len = strlen(key);
 
 	const uint32_t stack_depth = ctx->stack_depth;
-	rgs_assert(stack_depth < ctx->max_stack_depth);
+	aason_assert(stack_depth < ctx->max_stack_depth);
 
 	const uint32_t element_index = ctx->stack[stack_depth].element_index;
-	rgs_assert(element_index < ctx->element_count);
+	aason_assert(element_index < ctx->element_count);
 	const rgs_sdd_element* object_element = &ctx->elements[element_index];
 
 	if (stack_depth == 0)
@@ -105,17 +105,17 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 
 static const aason_element* aason_read_get_next_array_element(aason_context* ctx, aason_type type)
 {
-	rgs_assert(ctx);
+	aason_assert(ctx);
 
 	const uint32_t stack_depth = ctx->stack_depth;
-	rgs_assert(stack_depth > 0);
-	rgs_assert(stack_depth < ctx->max_stack_depth);
+	aason_assert(stack_depth > 0);
+	aason_assert(stack_depth < ctx->max_stack_depth);
 
 	const uint32_t element_index = ctx->stack[stack_depth].element_index;
-	rgs_assert(element_index < ctx->element_count);
+	aason_assert(element_index < ctx->element_count);
 
 	const aason_element* array_element = &ctx->elements[element_index];
-	rgs_assert(array_element->type == aason_type_array);
+	aason_assert(array_element->type == aason_type_array);
 
 	const uint32_t array_index = ctx->stack[stack_depth].array_index;
 	if (array_index < array_element->array_value.count)
@@ -140,11 +140,6 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 	return nullptr;
 }
 
-// These are the three parsing passes that have been split into multiple modules
-//#include "rgs.sdd_tokenise.c"
-//#include "rgs.sdd_validate.c"
-//#include "rgs.sdd_finalise.c"
-
 /*
 	TODO:
 	* SDD parsing has been refactored so that it returns a single allocation.
@@ -155,9 +150,9 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 */
 aason_context* aason_read(rgs_allocator allocator, char* src, int64_t size, uint32_t tab_size, aason_error_callback callback, void* user_data)
 {
-	rgs_assert(src);
-	rgs_assert(size >= 0);
-	rgs_assert(tab_size <= 8);
+	aason_assert(src);
+	aason_assert(size >= 0);
+	aason_assert(tab_size <= 8);
 
 	//RGS_PROFILE_FUNCTION_BEGIN();
 	//rgs_frame frame = rgs_scratch_push();
@@ -231,7 +226,7 @@ bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags fla
 		}
 
 		const uint32_t stack_depth = ++ctx->stack_depth;
-		rgs_assert(stack_depth < ctx->max_stack_depth);
+		aason_assert(stack_depth < ctx->max_stack_depth);
 
 		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
 		ctx->stack[stack_depth].array_index = 0;
@@ -247,15 +242,15 @@ bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags fla
 
 void aason_read_array_leave(aason_context* ctx)
 {
-	rgs_assert(ctx);
-	rgs_assert(ctx->stack_depth > 0);
-	rgs_assert(ctx->stack_depth < ctx->max_stack_depth);
+	aason_assert(ctx);
+	aason_assert(ctx->stack_depth > 0);
+	aason_assert(ctx->stack_depth < ctx->max_stack_depth);
 
 	const uint32_t element_index = ctx->stack[ctx->stack_depth].element_index;
-	rgs_assert(element_index < ctx->element_count);
+	aason_assert(element_index < ctx->element_count);
 
 	const aason_element* element = &ctx->elements[element_index];
-	rgs_assert(element->type == aason_type_array);
+	aason_assert(element->type == aason_type_array);
 
 	--ctx->stack_depth;
 }
@@ -266,7 +261,7 @@ bool aason_read_array_enter_object(aason_context* ctx)
 	if (element)
 	{
 		const uint32_t stack_depth = ++ctx->stack_depth;
-		rgs_assert(stack_depth < ctx->max_stack_depth);
+		aason_assert(stack_depth < ctx->max_stack_depth);
 
 		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
 		++ctx->stack[stack_depth].array_index;
@@ -279,22 +274,22 @@ bool aason_read_array_enter_object(aason_context* ctx)
 
 void aason_read_array_leave_object(aason_context* ctx)
 {
-	rgs_assert(ctx);
-	rgs_assert(ctx->stack_depth > 0);
-	rgs_assert(ctx->stack_depth < ctx->max_stack_depth);
+	aason_assert(ctx);
+	aason_assert(ctx->stack_depth > 0);
+	aason_assert(ctx->stack_depth < ctx->max_stack_depth);
 
 	const uint32_t element_index = ctx->stack[ctx->stack_depth].element_index;
-	rgs_assert(element_index < ctx->element_count);
+	aason_assert(element_index < ctx->element_count);
 
 	const rgs_sdd_element* element = &ctx->elements[element_index];
-	rgs_assert(element->type == aason_type_object);
+	aason_assert(element->type == aason_type_object);
 
 	--ctx->stack_depth;
 }
 
 bool aason_read_array_str(aason_context* ctx, const char** value, int64_t* len)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_str);
 	if (element)
@@ -312,8 +307,8 @@ bool aason_read_array_str(aason_context* ctx, const char** value, int64_t* len)
 
 bool aason_read_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_size, bool truncate)
 {
-	rgs_assert(value);
-	rgs_assert(buffer_size > 0);
+	aason_assert(value);
+	aason_assert(buffer_size > 0);
 
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_str);
 	if (element)
@@ -347,7 +342,7 @@ bool aason_read_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_
 
 bool aason_read_array_int(aason_context* ctx, int64_t* value)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_int);
 	if (element)
@@ -361,7 +356,7 @@ bool aason_read_array_int(aason_context* ctx, int64_t* value)
 
 bool aaron_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min, int64_t max)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_int);
 	if (element)
@@ -385,7 +380,7 @@ bool aaron_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min
 
 bool aason_read_array_bool(aason_context* ctx, bool* value)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_bool);
 	if (element)
@@ -399,7 +394,7 @@ bool aason_read_array_bool(aason_context* ctx, bool* value)
 
 bool aason_read_array_hash(aason_context* ctx, uint32_t* value)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_hash);
 	if (element)
@@ -413,7 +408,7 @@ bool aason_read_array_hash(aason_context* ctx, uint32_t* value)
 
 bool aason_read_array_float(aason_context* ctx, float* value)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_float);
 	if (element)
@@ -427,9 +422,9 @@ bool aason_read_array_float(aason_context* ctx, float* value)
 
 bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** strings, int32_t count)
 {
-	rgs_assert(value);
-	rgs_assert(strings);
-	rgs_assert(count > 1);
+	aason_assert(value);
+	aason_assert(strings);
+	aason_assert(count > 1);
 
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_enum);
 	if (element)
@@ -448,7 +443,7 @@ bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** stri
 			}
 		}
 
-		aason_read_error(sdd, aason_error_invalid_enum, element->line, element->column,
+		aason_read_error(ctx, aason_error_invalid_enum, element->line, element->column,
 			"Invalid enum value '{s}' in array", enum_value
 		);
 	}
@@ -458,13 +453,13 @@ bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** stri
 
 bool aason_read_object_enter(aason_context* ctx, const char* key, aason_flags flags)
 {
-	rgs_assert(ctx->stack_depth + 1 < ctx->max_stack_depth);
+	aason_assert(ctx->stack_depth + 1 < ctx->max_stack_depth);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_object);
 	if (element)
 	{
 		const uint32_t stack_depth = ++ctx->stack_depth;
-		rgs_assert(stack_depth < ctx->max_stack_depth);
+		aason_assert(stack_depth < ctx->max_stack_depth);
 
 		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
 		return true;
@@ -475,22 +470,22 @@ bool aason_read_object_enter(aason_context* ctx, const char* key, aason_flags fl
 
 void aason_read_object_leave(aason_context* ctx)
 {
-	rgs_assert(ctx);
-	rgs_assert(ctx->stack_depth > 0);
-	rgs_assert(ctx->stack_depth < ctx->max_stack_depth);
+	aason_assert(ctx);
+	aason_assert(ctx->stack_depth > 0);
+	aason_assert(ctx->stack_depth < ctx->max_stack_depth);
 
 	const uint32_t element_index = ctx->stack[ctx->stack_depth].element_index;
-	rgs_assert(element_index < ctx->element_count);
+	aason_assert(element_index < ctx->element_count);
 
 	const aason_element* element = &ctx->elements[element_index];
-	rgs_assert(element->type == aason_type_object);
+	aason_assert(element->type == aason_type_object);
 
 	--ctx->stack_depth;
 }
 
 bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, int64_t* len)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_str);
 	if (element)
@@ -508,8 +503,8 @@ bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flag
 
 bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flags flags, char* value, int64_t buffer_size, bool truncate)
 {
-	rgs_assert(value);
-	rgs_assert(buffer_size > 0);
+	aason_assert(value);
+	aason_assert(buffer_size > 0);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_str);
 	if (element)
@@ -543,7 +538,7 @@ bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flag
 
 bool aason_read_object_int(aason_context* ctx, const char* key, aason_flags flags, int64_t* value)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_int);
 	if (element)
@@ -557,7 +552,7 @@ bool aason_read_object_int(aason_context* ctx, const char* key, aason_flags flag
 
 bool aason_read_object_int_ranged(aason_context* ctx, const char* key, aason_flags flags, int64_t* value, int64_t min, int64_t max)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_int);
 	if (element)
@@ -581,7 +576,7 @@ bool aason_read_object_int_ranged(aason_context* ctx, const char* key, aason_fla
 
 bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags flags, bool* value)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_bool);
 	if (element)
@@ -595,7 +590,7 @@ bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags fla
 
 bool aason_read_object_hash(aason_context* ctx, const char* key, aason_flags flags, uint32_t* value)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_hash);
 	if (element)
@@ -609,7 +604,7 @@ bool aason_read_object_hash(aason_context* ctx, const char* key, aason_flags fla
 
 bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value)
 {
-	rgs_assert(value);
+	aason_assert(value);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_float);
 	if (element)
@@ -623,9 +618,9 @@ bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags fl
 
 bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags flags, int32_t* value, const char** strings, int32_t count)
 {
-	rgs_assert(value);
-	rgs_assert(strings);
-	rgs_assert(count >= 1);
+	aason_assert(value);
+	aason_assert(strings);
+	aason_assert(count >= 1);
 
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_enum);
 	if (element)

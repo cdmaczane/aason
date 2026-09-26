@@ -107,7 +107,7 @@ void aason_archive_object_leave(aason_context* ctx)
 
 bool aason_archive_object_str(aason_context* ctx, const char* key, char** value, const char* default_value)
 {
-	rgs_assert(default_value);
+	aason_assert(default_value);
 
 	if (ctx->reading)
 	{
@@ -128,8 +128,8 @@ bool aason_archive_object_str(aason_context* ctx, const char* key, char** value,
 // TODO: Handle length errors as runtime errors, not using asserts
 bool aason_archive_object_fixed_str(aason_context* ctx, const char* key, char* value, const char* default_value, int64_t buffer_size, bool truncate)
 {
-	rgs_assert(default_value);
-	rgs_assert(strlen(default_value) < buffer_size);
+	aason_assert(default_value);
+	aason_assert(strlen(default_value) < buffer_size);
 
 	if (ctx->reading)
 	{

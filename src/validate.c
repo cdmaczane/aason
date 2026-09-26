@@ -36,7 +36,7 @@ static void aason_validate_error(aason_validator* validator, aason_error error, 
 static aason_token_type aason_validate_get_next_token(aason_validator* validator, aason_token** out_token)
 {
 	// TODO: Check if this could occur from bad data and, if so, convert to an error
-	rgs_assert(validator->current_token < rgs_scratch_array_count(validator->tokens));
+	aason_assert(validator->current_token < rgs_scratch_array_count(validator->tokens));
 
 	aason_token* token = &validator->tokens[validator->current_token++];
 	*out_token = token;
@@ -225,7 +225,7 @@ static bool aason_validate(aason_context* ctx, sdd_token* tokens)
 		validator->element_count = validator.element_count + 1;
 		validator->max_stack_depth = validator.max_depth;
 	
-		rgs_assert(validator.depth == 1);
+		aason_assert(validator.depth == 1);
 
 		return true;
 	}

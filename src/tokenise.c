@@ -41,7 +41,7 @@ static const char* aason_token_type_strings[] = {
 	"{",
 	"}"
 };
-rgs_assert(rgs_countof(aason_token_type_strings) == aason_token_type_count);
+static_assert(rgs_countof(aason_token_type_strings) == aason_token_type_count);
 
 enum
 {
