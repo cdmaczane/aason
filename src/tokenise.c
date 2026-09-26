@@ -1,26 +1,27 @@
 typedef enum
 {
-	sdd_token_type_error,
-	sdd_token_type_eof,
-	sdd_token_type_str,
-	sdd_token_type_bin,
-	sdd_token_type_dec,
-	sdd_token_type_hex,
-	sdd_token_type_hash,
-	sdd_token_type_true,
-	sdd_token_type_false,
-	sdd_token_type_comma,
-	sdd_token_type_colon,
-	sdd_token_type_float,
-	sdd_token_type_hash_str,
-	sdd_token_type_identifier,
-	sdd_token_type_enter_array,
-	sdd_token_type_leave_array,
-	sdd_token_type_enter_object,
-	sdd_token_type_leave_object
-} sdd_token_type;
+	aason_token_type_error,
+	aason_token_type_eof,
+	aason_token_type_str,
+	aason_token_type_bin,
+	aason_token_type_dec,
+	aason_token_type_hex,
+	aason_token_type_hash,
+	aason_token_type_true,
+	aason_token_type_false,
+	aason_token_type_comma,
+	aason_token_type_colon,
+	aason_token_type_float,
+	aason_token_type_hash_str,
+	aason_token_type_identifier,
+	aason_token_type_enter_array,
+	aason_token_type_leave_array,
+	aason_token_type_enter_object,
+	aason_token_type_leave_object,
+	aason_token_type_count
+} aason_token_type;
 
-static const char* sdd_token_type_strings[] = {
+static const char* aason_token_type_strings[] = {
 	"",
 	"EOF",
 	"string",
@@ -40,40 +41,41 @@ static const char* sdd_token_type_strings[] = {
 	"{",
 	"}"
 };
+rgs_assert(rgs_countof(aason_token_type_strings) == aason_token_type_count);
 
 enum
 {
-	sdd_tokenise_char_error,
-	sdd_tokenise_char_eof
+	aason_tokenise_char_error,
+	aason_tokenise_char_eof
 };
 
 typedef struct
 {
-	sdd_token_type	type;
-	uint32_t		count;
-	char*			begin;
-	char*			end;
-	uint32_t		line;
-	uint32_t		column;
-} sdd_token;
-static_assert(sizeof(sdd_token) == 32);
+	aason_token_type	type;
+	uint32_t			count;
+	char*				begin;
+	char*				end;
+	uint32_t			line;
+	uint32_t			column;
+} aason_token;
+static_assert(sizeof(aason_token) == 32);
 
 typedef struct
 {
-	rgs_sdd*	sdd;
-	uint32_t	tab_size;
-	char		c;
-	char*		begin;
-	char*		end;
-	char*		current;
-	char*		next;
-	uint32_t	line;
-	uint32_t	column;
-	uint32_t	next_line;
-	uint32_t	next_column;
-} sdd_tokenise_ctx;
+	aason_context*	ctx;
+	uint32_t		tab_size;
+	char			c;
+	char*			begin;
+	char*			end;
+	char*			current;
+	char*			next;
+	uint32_t		line;
+	uint32_t		column;
+	uint32_t		next_line;
+	uint32_t		next_column;
+} aason_tokeniser;
 
-static bool sdd_tokenise_is_valid_bin_char(char c)
+static bool aason_tokenise_is_valid_bin_char(char c)
 {
 	if (c == '0' || c == '1')
 		return true;
@@ -81,7 +83,7 @@ static bool sdd_tokenise_is_valid_bin_char(char c)
 	return false;
 }
 
-static bool sdd_tokenise_is_valid_dec_char(char c)
+static bool aason_tokenise_is_valid_dec_char(char c)
 {
 	if ((c >= '0' && c <= '9') || c == '-')
 		return true;
@@ -89,7 +91,7 @@ static bool sdd_tokenise_is_valid_dec_char(char c)
 	return false;
 }
 
-static bool sdd_tokenise_is_valid_hex_char(char c)
+static bool aason_tokenise_is_valid_hex_char(char c)
 {
 	if (c >= '0' && c <= '9')
 		return true;
@@ -101,7 +103,7 @@ static bool sdd_tokenise_is_valid_hex_char(char c)
 	return false;
 }
 
-static bool sdd_tokenise_is_valid_identifier_first_char(char c)
+static bool aason_tokenise_is_valid_identifier_first_char(char c)
 {
 	if (c >= 'a' && c <= 'z')
 		return true;
@@ -113,9 +115,9 @@ static bool sdd_tokenise_is_valid_identifier_first_char(char c)
 	return false;
 }
 
-static bool sdd_tokenise_is_valid_identifier_char(char c)
+static bool aason_tokenise_is_valid_identifier_char(char c)
 {
-	if (sdd_tokenise_is_valid_identifier_first_char(c))
+	if (aason_tokenise_is_valid_identifier_first_char(c))
 		return true;
 	else if (c >= '0' && c <= '9')
 		return true;
@@ -123,15 +125,15 @@ static bool sdd_tokenise_is_valid_identifier_char(char c)
 	return false;
 }
 
-static void sdd_tokenise_error(sdd_tokenise_ctx* ctx, rgs_sdd_error error, const char* fmt, ...)
+static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error error, const char* fmt, ...)
 {
 	char buffer[rgs_kib(4)];
 
-	ctx->sdd->error = error;
-	ctx->sdd->error_line = ctx->line;
-	ctx->sdd->error_column = ctx->column;
+	tokeniser->ctx->error = error;
+	tokeniser->ctx->error_line = tokeniser->line;
+	tokeniser->ctx->error_column = tokeniser->column;
 
-	if (ctx->sdd->error_callback)
+	if (tokeniser->ctx->error_callback)
 	{
 		va_list args;
 		va_start(args, fmt);
@@ -139,44 +141,43 @@ static void sdd_tokenise_error(sdd_tokenise_ctx* ctx, rgs_sdd_error error, const
 		(void)len;
 		va_end(args);
 	
-		ctx->sdd->error_callback(ctx->sdd->user_data, error, ctx->line, ctx->column, buffer);
+		tokeniser->ctx->error_callback(tokeniser->ctx->user_data, error, tokeniser->line, tokeniser->column, buffer);
 	}
 }
 
-static char sdd_tokenise_get_char(sdd_tokenise_ctx* ctx)
+static char aason_tokenise_get_char(aason_tokeniser* tokeniser)
 {
 	char c;
 
-	if (ctx->next == ctx->end)
+	if (tokeniser->next == tokeniser->end)
 	{
 		// Check for EOF before we start dereferencing invalid memory
-		c = sdd_tokenise_char_eof;
+		c = aason_tokenise_char_eof;
 	}
-	else if (ctx->next > ctx->end)
+	else if (tokeniser->next > tokeniser->end)
 	{
 		// This means invalid UTF-8 sequence
-		sdd_tokenise_error(ctx, rgs_sdd_error_invalid_char, "Invalid UTF-8 character");
-		c = sdd_tokenise_char_error;
+		aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid UTF-8 character");
+		c = aason_tokenise_char_error;
 	}
 	else
 	{
 		// These updates are delayed to make delegation of parsing to other functions easier
-		ctx->current =	ctx->next;
-		ctx->line = ctx->next_line;
-		ctx->column = ctx->next_column;
+		tokeniser->current = tokeniser->next;
+		tokeniser->line = tokeniser->next_line;
+		tokeniser->column = tokeniser->next_column;
 	
 		// This should handle simple UTF-8 but we need a way to determine non-printable characters
-		c = *ctx->current;
+		c = *tokeniser->current;
 		const int64_t byte_count = rgs_utf8_byte_count(c);
-		ctx->next += byte_count;
+		tokeniser->next += byte_count;
 	
 		if (c < 32)
 		{
 			if (c == '\t')
 			{
-				// TODO: Test this
-				const uint32_t tab_size = ctx->tab_size - ((ctx->next_column - 1) % ctx->tab_size);
-				ctx->next_column += tab_size;
+				const uint32_t tab_size = tokeniser->tab_size - ((tokeniser->next_column - 1) % tokeniser->tab_size);
+				tokeniser->next_column += tab_size;
 			}
 			else if (c == '\r')
 			{
@@ -184,46 +185,46 @@ static char sdd_tokenise_get_char(sdd_tokenise_ctx* ctx)
 			}
 			else if (c == '\n')
 			{
-				++ctx->next_line;
-				ctx->next_column = 1;
+				++tokeniser->next_line;
+				tokeniser->next_column = 1;
 			}
 			else
 			{
 				// Invalid control character
-				sdd_tokenise_error(ctx, rgs_sdd_error_invalid_char, "Invalid control character '{i32}'", c);
-				c = sdd_tokenise_char_error;
+				aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid control character '{i32}'", c);
+				c = aason_tokenise_char_error;
 			}
 		}
 		else if (c == 127)
 		{
 			// Delete character
-			sdd_tokenise_error(ctx, rgs_sdd_error_invalid_char, "Invalid delete character");
-			c = sdd_tokenise_char_error;
+			aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid delete character");
+			c = aason_tokenise_char_error;
 		}
 		else
 		{
-			++ctx->next_column;
+			++tokeniser->next_column;
 		}
 	}
 
-	ctx->c = c;
+	tokeniser->c = c;
 
 	return c;
 }
 
-static char sdd_tokenise_skip_comments(sdd_tokenise_ctx* ctx)
+static char aason_tokenise_skip_comments(aason_tokeniser* tokeniser)
 {
-	char c = sdd_tokenise_get_char(ctx);
+	char c = aason_tokenise_get_char(tokeniser);
 	if (c == '/')
 	{
 		// Skip past the end of the line for C++ comments
 		do
 		{
-			c = sdd_tokenise_get_char(ctx);
-		} while (c != '\n'); // TODO: We need to check for sdd_tokenise_char_error
+			c = aason_tokenise_get_char(tokeniser);
+		} while (c != '\n'); // TODO: We need to check for aason_tokenise_char_error
 
 		// Consume final '\n'
-		c = sdd_tokenise_get_char(ctx);
+		c = aason_tokenise_get_char(tokeniser);
 	}
 	else if (c == '*')
 	{
@@ -232,13 +233,13 @@ static char sdd_tokenise_skip_comments(sdd_tokenise_ctx* ctx)
 
 		for (;;)
 		{
-			c = sdd_tokenise_get_char(ctx);
+			c = aason_tokenise_get_char(tokeniser);
 			if (prev == '*' && c == '/')
 			{
 				if (--depth == 0)
 				{
 					// Consume final /
-					c = sdd_tokenise_get_char(ctx);
+					c = aason_tokenise_get_char(tokeniser);
 					break;
 				}
 
@@ -249,13 +250,13 @@ static char sdd_tokenise_skip_comments(sdd_tokenise_ctx* ctx)
 				++depth;
 				prev = 0; // Prevent misinterpreting string "/*/" as "/*" and "*/"
 			}
-			else if (c == sdd_tokenise_char_eof)
+			else if (c == aason_tokenise_char_eof)
 			{
-				sdd_tokenise_error(ctx, rgs_sdd_error_invalid_char, "Unexpected end-of-file");
-				c = sdd_tokenise_char_error;
+				aason_tokenise_error(ctx, aason_error_invalid_char, "Unexpected end-of-file");
+				c = aason_tokenise_char_error;
 				break;
 			}
-			else if (c == sdd_tokenise_char_error)
+			else if (c == aason_tokenise_char_error)
 			{
 				break;
 			}
@@ -265,16 +266,16 @@ static char sdd_tokenise_skip_comments(sdd_tokenise_ctx* ctx)
 	}
 	else
 	{
-		sdd_tokenise_error(ctx, rgs_sdd_error_invalid_char, "Expected '/' or '*' for comment");
-		c = sdd_tokenise_char_error;
+		aason_tokenise_error(tokeniser, aason_error_invalid_char, "Expected '/' or '*' for comment");
+		c = aason_tokenise_char_error;
 	}
 
 	return c;
 }
 
-static char sdd_tokenise_skip_whitespace(sdd_tokenise_ctx* ctx)
+static char aason_tokenise_skip_whitespace(aason_tokeniser* tokeniser)
 {
-	char c = ctx->c;
+	char c = tokeniser->c;
 
 	for (;;)
 	{
@@ -284,25 +285,25 @@ static char sdd_tokenise_skip_whitespace(sdd_tokenise_ctx* ctx)
 		case '\r':
 		case '\t':
 		case '\n':
-			c = sdd_tokenise_get_char(ctx);
+			c = aason_tokenise_get_char(tokeniser);
 			break;
 		case '/':
-			c = sdd_tokenise_skip_comments(ctx);
+			c = aason_tokenise_skip_comments(tokeniser);
 			break;
 		default:
 			return c;
 		}
 	}
 
-	rgs_unreachable();
+	//rgs_unreachable();
 }
 
-static sdd_token_type sdd_tokenise_parse_str(sdd_tokenise_ctx* ctx)
+static aason_token_type aason_tokenise_parse_str(aason_tokeniser* tokeniser)
 {
 	bool inside_escape = false;
 	for (;;)
 	{
-		const char c = sdd_tokenise_get_char(ctx);
+		const char c = aason_tokenise_get_char(tokeniser);
 
 		if (c == '\\')
 		{
@@ -313,14 +314,14 @@ static sdd_token_type sdd_tokenise_parse_str(sdd_tokenise_ctx* ctx)
 		{
 			break;
 		}
-		else if (c == sdd_tokenise_char_eof)
+		else if (c == aason_tokenise_char_eof)
 		{
-			sdd_tokenise_error(ctx, rgs_sdd_error_invalid_char, "Unexpected end-of-file");
-			return sdd_token_type_error;
+			aason_tokenise_error(tokeniser, rgs_sdd_error_invalid_char, "Unexpected end-of-file");
+			return aason_token_type_error;
 		}
-		else if (c == sdd_tokenise_char_error)
+		else if (c == aason_tokenise_char_error)
 		{
-			return sdd_token_type_error;
+			return aason_token_type_error;
 		}
 		else
 		{
@@ -329,129 +330,129 @@ static sdd_token_type sdd_tokenise_parse_str(sdd_tokenise_ctx* ctx)
 	}
 
 	// Swallow final " character
-	sdd_tokenise_get_char(ctx);
+	aason_tokenise_get_char(tokeniser);
 
-	return sdd_token_type_str;
+	return aason_token_type_str;
 }
 
-static sdd_token_type sdd_tokenise_parse_hash(sdd_tokenise_ctx* ctx)
+static aason_token_type aason_tokenise_parse_hash(aason_tokeniser* tokeniser)
 {
-	char c = sdd_tokenise_get_char(ctx);
+	char c = aason_tokenise_get_char(tokeniser);
 
 	if (c == '"')
 	{
-		const sdd_token_type type = sdd_tokenise_parse_str(ctx);
-		if (type == sdd_token_type_str)
-			return sdd_token_type_hash_str;
+		const aason_token_type type = aason_tokenise_parse_str(tokeniser);
+		if (type == aason_token_type_str)
+			return aason_token_type_hash_str;
 		else
 			return type;
 	}
 
 	for (int i = 0; i < 8; ++i)
 	{
-		if (!sdd_tokenise_is_valid_hex_char(c))
+		if (!aason_tokenise_is_valid_hex_char(c))
 		{
-			sdd_tokenise_error(ctx, rgs_sdd_error_invalid_char, "Character '{c}' is not a valid hexadecimal character");
-			return sdd_token_type_error;
+			aason_tokenise_error(tokeniser, rgs_sdd_error_invalid_char, "Character '{c}' is not a valid hexadecimal character");
+			return aason_token_type_error;
 		}
 
-		c = sdd_tokenise_get_char(ctx);
+		c = aason_tokenise_get_char(tokeniser);
 	}
 
-	return sdd_token_type_hash;
+	return aason_token_type_hash;
 }
 
-static sdd_token_type sdd_tokenise_parse_bin(sdd_tokenise_ctx* ctx)
+static aason_token_type aason_tokenise_parse_bin(aason_tokeniser* tokeniser)
 {
 	for (;;)
 	{
-		if (!sdd_tokenise_is_valid_bin_char(sdd_tokenise_get_char(ctx)))
+		if (!aason_tokenise_is_valid_bin_char(aason_tokenise_get_char(tokeniser)))
 			break;
 	}
 
-	return sdd_token_type_bin;
+	return aason_token_type_bin;
 }
 
-static sdd_token_type sdd_tokenise_parse_hex(sdd_tokenise_ctx* ctx)
+static aason_token_type aason_tokenise_parse_hex(aason_tokeniser* tokeniser)
 {
 	for (;;)
 	{
-		if (!sdd_tokenise_is_valid_hex_char(sdd_tokenise_get_char(ctx)))
+		if (!aason_tokenise_is_valid_hex_char(aason_tokenise_get_char(tokeniser)))
 			break;
 	}
 
-	return sdd_token_type_hex;
+	return aason_token_type_hex;
 }
 
-static sdd_token_type sdd_tokenise_parse_number(sdd_tokenise_ctx* ctx)
+static aason_token_type aason_tokenise_parse_number(aason_tokeniser* tokeniser)
 {
-	char c = ctx->c;
+	char c = tokeniser->c;
 
 	if (c == '0')
 	{
-		c = sdd_tokenise_get_char(ctx);
+		c = aason_tokenise_get_char(tokeniser);
 
 		if (c == 'x')
-			return sdd_tokenise_parse_hex(ctx);
+			return aason_tokenise_parse_hex(tokeniser);
 		else if (c == 'b')
-			return sdd_tokenise_parse_bin(ctx);
+			return aason_tokenise_parse_bin(tokeniser);
 	}
 
-	sdd_token_type type = sdd_token_type_dec;
+	aason_token_type type = aason_token_type_dec;
 	for (;;)
 	{
 		if (c == '.')
 		{
-			if (type == sdd_token_type_float)
+			if (type == aason_token_type_float)
 			{
-				sdd_tokenise_error(ctx, rgs_sdd_error_invalid_char, "Floating point numbers may only contain a single '.' character");
-				return sdd_token_type_error;
+				aason_tokenise_error(tokeniser, aason_error_invalid_char, "Floating point numbers may only contain a single '.' character");
+				return aason_token_type_error;
 			}
 
-			type = sdd_token_type_float;
+			type = aason_token_type_float;
 		}
-		else if (!sdd_tokenise_is_valid_dec_char(c))
+		else if (!aason_tokenise_is_valid_dec_char(c))
 		{
 			break;
 		}
 
-		c = sdd_tokenise_get_char(ctx);
+		c = aason_tokenise_get_char(tokeniser);
 	}
 
 	return type;
 }
 
-static sdd_token_type sdd_tokenise_parse_identifier(sdd_tokenise_ctx* ctx)
+static aason_token_type aason_tokenise_parse_identifier(aason_tokeniser* tokeniser)
 {
-	const char* begin = ctx->current;
+	const char* begin = tokeniser->current;
 	for (;;)
 	{
-		const char c = sdd_tokenise_get_char(ctx);
-		if (!sdd_tokenise_is_valid_identifier_char(c))
+		const char c = aason_tokenise_get_char(tokeniser);
+		if (!aason_tokenise_is_valid_identifier_char(c))
 		{
-			const int64_t len = ctx->current - begin;
+			const int64_t len = tokeniser->current - begin;
 			if (len == 4)
 			{
 				if (begin[0] == 't' && begin[1] == 'r' && begin[2] == 'u' && begin[3] == 'e')
-					return sdd_token_type_true;
+					return aason_token_type_true;
 			}
 			else if (len == 5)
 			{
 				if (begin[0] == 'f' && begin[1] == 'a' && begin[2] == 'l' && begin[3] == 's' && begin[4] == 'e')
-					return sdd_token_type_false;
+					return aason_token_type_false;
 			}
 
-			return sdd_token_type_identifier;
+			return aason_token_type_identifier;
 		}
 	}
 
-	rgs_unreachable();
+	//rgs_unreachable();
 }
 
-static sdd_token* sdd_tokenise(rgs_sdd* sdd, char* buffer, int64_t size, uint32_t tab_size)
+static aason_token* aason_tokenise(aason_context* ctx, char* buffer, int64_t size, uint32_t tab_size)
 {
-	sdd_tokenise_ctx ctx = {
-		.sdd			= sdd,
+	aason_tokeniser tokeniser = {
+		.ctx			= ctx,
 		.tab_size		= tab_size,
 		.begin			= buffer,
 		.end			= buffer + size,
@@ -463,86 +464,86 @@ static sdd_token* sdd_tokenise(rgs_sdd* sdd, char* buffer, int64_t size, uint32_
 		.next_column	= 1
 	};
 
-	sdd_token* tokens = nullptr;
-	sdd_tokenise_get_char(&ctx);
+	aason_token* tokens = nullptr;
+	aason_tokenise_get_char(&tokeniser);
 
 	for (;;)
 	{
-		char c = sdd_tokenise_skip_whitespace(&ctx);
+		char c = aason_tokenise_skip_whitespace(&tokeniser);
 		if (c == '/')
-			c = sdd_tokenise_skip_comments(&ctx);
+			c = aason_tokenise_skip_comments(&tokeniser);
 
-		sdd_token* token = rgs_scratch_array_emplace(tokens);
+		aason_token* token = rgs_scratch_array_emplace(tokens);
 		token->count = 0;
-		token->begin = ctx.current;
-		token->line = ctx.line;
-		token->column = ctx.column;
+		token->begin = tokeniser.current;
+		token->line = tokeniser.line;
+		token->column = tokeniser.column;
 
 		if (c == ':')
 		{
-			token->type = sdd_token_type_colon;
-			sdd_tokenise_get_char(&ctx);
+			token->type = aason_token_type_colon;
+			aason_tokenise_get_char(&tokeniser);
 		}
 		else if (c == ',')
 		{
-			token->type = sdd_token_type_comma;
-			sdd_tokenise_get_char(&ctx);
+			token->type = aason_token_type_comma;
+			aason_tokenise_get_char(&tokeniser);
 		}
 		else if (c == '[')
 		{
-			token->type = sdd_token_type_enter_array;
-			sdd_tokenise_get_char(&ctx);
+			token->type = aason_token_type_enter_array;
+			aason_tokenise_get_char(&tokeniser);
 		}
 		else if (c == ']')
 		{
-			token->type = sdd_token_type_leave_array;
-			sdd_tokenise_get_char(&ctx);
+			token->type = aason_token_type_leave_array;
+			aason_tokenise_get_char(&tokeniser);
 		}
 		else if (c == '{')
 		{
-			token->type = sdd_token_type_enter_object;
-			sdd_tokenise_get_char(&ctx);
+			token->type = aason_token_type_enter_object;
+			aason_tokenise_get_char(&tokeniser);
 		}
 		else if (c == '}')
 		{
-			token->type = sdd_token_type_leave_object;
-			sdd_tokenise_get_char(&ctx);
+			token->type = aason_token_type_leave_object;
+			aason_tokenise_get_char(&tokeniser);
 		}
 		else if (c == '"')
 		{
-			token->type = sdd_tokenise_parse_str(&ctx);
+			token->type = aason_tokenise_parse_str(&tokeniser);
 		}
 		else if (c == '#')
 		{
-			token->type = sdd_tokenise_parse_hash(&ctx);
+			token->type = aason_tokenise_parse_hash(&tokeniser);
 		}
-		else if (sdd_tokenise_is_valid_dec_char(c))
+		else if (aason_tokenise_is_valid_dec_char(c))
 		{
-			token->type = sdd_tokenise_parse_number(&ctx);
+			token->type = aason_tokenise_parse_number(&tokeniser);
 		}
-		else if (sdd_tokenise_is_valid_identifier_first_char(c))
+		else if (aason_tokenise_is_valid_identifier_first_char(c))
 		{
-			token->type = sdd_tokenise_parse_identifier(&ctx);
+			token->type = aason_tokenise_parse_identifier(&tokeniser);
 		}
-		else if (c == sdd_tokenise_char_eof)
+		else if (c == aason_tokenise_char_eof)
 		{
-			token->type = sdd_token_type_eof;
+			token->type = aason_token_type_eof;
 			break;
 		}
-		else if (c == sdd_tokenise_char_error)
+		else if (c == aason_tokenise_char_error)
 		{
 			break;
 		}
 		else
 		{
-			sdd_tokenise_error(&ctx, rgs_sdd_error_invalid_char, "Invalid token");
+			aason_tokenise_error(&tokeniser, aason_error_invalid_char, "Invalid token");
 			break;
 		}
 
-		if (token->type == sdd_token_type_error)
+		if (token->type == aason_token_type_error)
 			break;
 
-		token->end = ctx.current;
+		token->end = tokeniser.current;
 	}
 
 	return tokens;

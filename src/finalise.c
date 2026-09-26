@@ -1,22 +1,22 @@
 typedef struct
 {
-	rgs_sdd*	sdd;
-	char*		begin;
-	sdd_token*	tokens;
-	uint32_t	token_index;
-	uint32_t	element_index;
-	jmp_buf		jmp_ctx;
-} sdd_finalise_ctx;
+	aason_context*	ctx;
+	char*			begin;
+	aason_token*	tokens;
+	uint32_t		token_index;
+	uint32_t		element_index;
+	jmp_buf			jmp_ctx;
+} aason_finaliser;
 
-static void sdd_finalise_error(sdd_finalise_ctx* ctx, rgs_sdd_error error, const char* fmt, ...)
+static void aason_finalise_error(aason_finaliser* finaliser, aason_error error, const char* fmt, ...)
 {
 	char buffer[rgs_kib(4)];
 
-	ctx->sdd->error = error;
-	ctx->sdd->error_line = ctx->tokens[ctx->token_index].line;
-	ctx->sdd->error_column = ctx->tokens[ctx->token_index].column;
+	finaliser->ctx->error = error;
+	finaliser->ctx->error_line = finaliser->tokens[finaliser->token_index].line;
+	finaliser->ctx->error_column = finaliser->tokens[finaliser->token_index].column;
 
-	if (ctx->sdd->error_callback)
+	if (finaliser->ctx->error_callback)
 	{
 		va_list args;
 		va_start(args, fmt);
@@ -24,237 +24,237 @@ static void sdd_finalise_error(sdd_finalise_ctx* ctx, rgs_sdd_error error, const
 		(void)len;
 		va_end(args);
 	
-		ctx->sdd->error_callback(ctx->sdd->user_data, error, ctx->sdd->error_line, ctx->sdd->error_column, buffer);
+		finaliser->ctx->error_callback(finaliser->ctx->user_data, error, finaliser->ctx->error_line, finaliser->ctx->error_column, buffer);
 	}
 
-	longjmp(ctx->jmp_ctx, 1);
+	longjmp(finaliser->jmp_ctx, 1);
 }
 
-static sdd_token* sdd_finalise_get_next_token(sdd_finalise_ctx* ctx)
+static aason_token* aason_finalise_get_next_token(aason_finaliser* finaliser)
 {
-	rgs_assert(ctx->token_index < rgs_scratch_array_count(ctx->tokens));
+	rgs_assert(finaliser->token_index < rgs_scratch_array_count(finaliser->tokens));
 
-	return &ctx->tokens[ctx->token_index++];
+	return &finaliser->tokens[finaliser->token_index++];
 }
 
-static rgs_sdd_element* sdd_finalise_allocate_elements(sdd_finalise_ctx* ctx, uint32_t count)
+static aason_element* aason_finalise_allocate_elements(aason_finaliser* finaliser, uint32_t count)
 {
-	rgs_assert(ctx->element_index + count <= ctx->sdd->element_count);
+	rgs_assert(finaliser->element_index + count <= finaliser->ctx->element_count);
 
-	rgs_sdd_element* alloc = &ctx->sdd->elements[ctx->element_index];
-	ctx->element_index += count;
+	aason_element* alloc = &finaliser->ctx->elements[finaliser->element_index];
+	finaliser->element_index += count;
 
 	return alloc;
 }
 
-static void sdd_finalise_parse_str(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_str;
-	element->str_value.offset = (uint32_t)(token->begin - ctx->begin) + 1;
+	element->type = aason_type_str;
+	element->str_value.offset = (uint32_t)(token->begin - finaliser->begin) + 1;
 	element->str_value.len = (uint32_t)(token->end - token->begin) - 1;
 
 	// Null terminate string
 	token->end[-1] = 0;
 }
 
-static void sdd_finalise_parse_bin(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_bin(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_int;
+	element->type = aason_type_int;
 
 	if (rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_bin) < 0)
-		sdd_finalise_error(ctx, rgs_sdd_error_out_of_range, "Binary integer too large");
+		aason_finalise_error(finaliser, aason_error_out_of_range, "Binary integer too large");
 }
 
-static void sdd_finalise_parse_dec(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_dec(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_int;
+	element->type = aason_type_int;
 
 	if (rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_dec) < 0)
-		sdd_finalise_error(ctx, rgs_sdd_error_out_of_range, "Decimal integer too large");
+		aason_finalise_error(finaliser, aason_error_out_of_range, "Decimal integer too large");
 }
 
-static void sdd_finalise_parse_hex(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_int;
+	element->type = aason_type_int;
 
 	if (rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_hex) < 0)
-		sdd_finalise_error(ctx, rgs_sdd_error_out_of_range, "Hexadecimal integer too large");
+		aason_finalise_error(ctx, aason_error_out_of_range, "Hexadecimal integer too large");
 }
 
-static void sdd_finalise_parse_hash(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_hash(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_hash;
+	element->type = aason_type_hash;
 	rgs_from_string_u32(token->begin + 1, &element->hash_value, rgs_int_base_hex);
 }
 
-static void sdd_finalise_parse_true(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_true(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_bool;
+	element->type = aason_type_bool;
 	element->bool_value = true;
 }
 
-static void sdd_finalise_parse_false(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_false(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_bool;
+	element->type = aason_type_bool;
 	element->bool_value = false;
 }
 
-static void sdd_finalise_parse_float(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_float;
+	element->type = aason_type_float;
 
 	if (rgs_from_string_float(token->begin, &element->float_value) < 0)
-		sdd_finalise_error(ctx, rgs_sdd_error_out_of_range, "Floating point number out of range");
+		aason_finalise_error(finaliser, aason_error_out_of_range, "Floating point number out of range");
 }
 
-static void sdd_finalise_parse_hash_str(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_hash_str(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_hash;
+	element->type = aason_type_hash;
 	element->hash_value = rgs_hash_mem_fnv32(token->begin + 2, token->end - token->begin - 3);
 }
 
-static void sdd_finalise_parse_enum(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element)
+static void aason_finalise_parse_enum(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	element->type = rgs_sdd_type_enum;
-	element->enum_value.offset = (uint32_t)(token->begin - ctx->begin);
+	element->type = aason_type_enum;
+	element->enum_value.offset = (uint32_t)(token->begin - finaliser->begin);
 	element->enum_value.len = (uint32_t)(token->end - token->begin);
 
 	// Null terminate string
 	*token->end = 0;
 }
 
-static void sdd_finalise_parse_array(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element);
-static void sdd_finalise_parse_object(sdd_finalise_ctx* ctx, sdd_token* token, rgs_sdd_element* element);
+static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* token, aason_element* element);
+static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 
-static void sdd_finalise_parse_element(sdd_finalise_ctx* ctx, sdd_token* parent, sdd_token* token, rgs_sdd_element* element, bool inside_array)
+static void aason_finalise_parse_element(aason_finaliser* finaliser, aason_token* parent, aason_token* token, aason_element* element, bool inside_array)
 {
 	switch (token->type)
 	{
-	case sdd_token_type_str:
-		sdd_finalise_parse_str(ctx, token, element);
+	case aason_token_type_str:
+		aason_finalise_parse_str(finaliser, token, element);
 		break;
-	case sdd_token_type_bin:
-		sdd_finalise_parse_bin(ctx, token, element);
+	case aason_token_type_bin:
+		aason_finalise_parse_bin(finaliser, token, element);
 		break;
-	case sdd_token_type_dec:
-		sdd_finalise_parse_dec(ctx, token, element);
+	case aason_token_type_dec:
+		aason_finalise_parse_dec(finaliser, token, element);
 		break;
-	case sdd_token_type_hex:
-		sdd_finalise_parse_hex(ctx, token, element);
+	case aason_token_type_hex:
+		aason_finalise_parse_hex(finaliser, token, element);
 		break;
-	case sdd_token_type_hash:
-		sdd_finalise_parse_hash(ctx, token, element);
+	case aason_token_type_hash:
+		aason_finalise_parse_hash(finaliser, token, element);
 		break;
-	case sdd_token_type_true:
-		sdd_finalise_parse_true(ctx, token, element);
+	case aason_token_type_true:
+		aason_finalise_parse_true(finaliser, token, element);
 		break;
-	case sdd_token_type_false:
-		sdd_finalise_parse_false(ctx, token, element);
+	case aason_token_type_false:
+		aason_finalise_parse_false(finaliser, token, element);
 		break;
-	case sdd_token_type_float:
-		sdd_finalise_parse_float(ctx, token, element);
+	case aason_token_type_float:
+		aason_finalise_parse_float(finaliser, token, element);
 		break;
-	case sdd_token_type_hash_str:
-		sdd_finalise_parse_hash_str(ctx, token, element);
+	case aason_token_type_hash_str:
+		aason_finalise_parse_hash_str(finaliser, token, element);
 		break;
-	case sdd_token_type_identifier:
-		sdd_finalise_parse_enum(ctx, token, element);
+	case aason_token_type_identifier:
+		aason_finalise_parse_enum(finaliser, token, element);
 		break;
-	case sdd_token_type_enter_array:
-		sdd_finalise_parse_array(ctx, parent, element);
+	case aason_token_type_enter_array:
+		aason_finalise_parse_array(finaliser, parent, element);
 		break;
-	case sdd_token_type_enter_object:
-		sdd_finalise_parse_object(ctx, inside_array ? token : parent, element);
+	case aason_token_type_enter_object:
+		aason_finalise_parse_object(finaliser, inside_array ? token : parent, element);
 		break;
 	default:
 		break;
 	}
 }
 
-static void sdd_finalise_parse_array(sdd_finalise_ctx* ctx, sdd_token* self, rgs_sdd_element* element)
+static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* self, aason_element* element)
 {
-	element->type = rgs_sdd_type_array;
+	element->type = aason_type_array;
 
 	const uint32_t array_count = self->count;
 	element->array_value.count = array_count;
-	element->array_value.first_child = ctx->element_index;
+	element->array_value.first_child = finaliser->element_index;
 
-	rgs_sdd_element* children = sdd_finalise_allocate_elements(ctx, array_count);
+	aason_element* children = aason_finalise_allocate_elements(finaliser, array_count);
 
 	for (uint32_t i = 0; i < array_count; ++i)
 	{
-		sdd_token* token = sdd_finalise_get_next_token(ctx);
+		sdd_token* token = aason_finalise_get_next_token(finaliser);
 
 		children[i].key_offset = 0;
 		children[i].key_len = 0;
 		children[i].line = token->line;
 		children[i].column = token->column;
 
-		sdd_finalise_parse_element(ctx, self, token, &children[i], true);
+		aason_finalise_parse_element(finaliser, self, token, &children[i], true);
 
 		if (i < array_count - 1)
-			sdd_finalise_get_next_token(ctx); // Skip comma token
+			aason_finalise_get_next_token(finaliser); // Skip comma token
 	}
 
-	sdd_finalise_get_next_token(ctx); // Skip leave array token
+	aason_finalise_get_next_token(finaliser); // Skip leave array token
 }
 
-static void sdd_finalise_parse_object(sdd_finalise_ctx* ctx, sdd_token* self, rgs_sdd_element* element)
+static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* self, aason_element* element)
 {
-	element->type = rgs_sdd_type_object;
+	element->type = aason_type_object;
 
 	const uint32_t field_count = self->count;
 	element->object_value.count = field_count;
-	element->object_value.first_child = ctx->element_index;
+	element->object_value.first_child = finaliser->element_index;
 
-	rgs_sdd_element* children = sdd_finalise_allocate_elements(ctx, field_count);
+	aason_element* children = aason_finalise_allocate_elements(finaliser, field_count);
 
 	for (uint32_t i = 0; i < field_count; ++i)
 	{
-		self = sdd_finalise_get_next_token(ctx);
-		sdd_finalise_get_next_token(ctx); // Skip colon token
+		self = aason_finalise_get_next_token(finaliser);
+		aason_finalise_get_next_token(finaliser); // Skip colon token
 		*self->end = 0; // Null terminate key string
 
-		children[i].key_offset = (uint32_t)(self->begin - ctx->begin);
+		children[i].key_offset = (uint32_t)(self->begin - finaliser->begin);
 		children[i].key_len = (uint32_t)(self->end - self->begin);
 		children[i].line = self->line;
 		children[i].column = self->column;
 
-		sdd_token* token = sdd_finalise_get_next_token(ctx);
-		sdd_finalise_parse_element(ctx, self, token, &children[i], false);
+		sdd_token* token = aason_finalise_get_next_token(finaliser);
+		aason_finalise_parse_element(finaliser, self, token, &children[i], false);
 
 		if (i < field_count - 1)
-			sdd_finalise_get_next_token(ctx); // Skip comma token
+			aason_finalise_get_next_token(finaliser); // Skip comma token
 	}
 
-	sdd_finalise_get_next_token(ctx); // Skip leave object token
+	aason_finalise_get_next_token(finaliser); // Skip leave object token
 }
 
-static bool sdd_finalise(rgs_sdd* sdd, char* buffer, sdd_token* tokens)
+static bool aason_finalise(aason_context* ctx, char* buffer, aason_token* tokens)
 {
-	sdd_finalise_ctx ctx = {
-		.sdd	= sdd,
+	aason_finaliser finaliser = {
+		.ctx	= ctx,
 		.begin	= buffer,
 		.tokens	= tokens
 	};
 
-	if (!setjmp(ctx.jmp_ctx))
+	if (!setjmp(finaliser.jmp_ctx))
 	{
-		sdd_token* self = sdd_finalise_get_next_token(&ctx);
-		sdd_finalise_get_next_token(&ctx); // Skip colon token
+		aason_token* self = aason_finalise_get_next_token(&finaliser);
+		aason_finalise_get_next_token(&finaliser); // Skip colon token
 		*self->end = 0; // Null terminate key string
 	
 		// Allocate root element
-		rgs_sdd_element* element = sdd_finalise_allocate_elements(&ctx, 1);
+		aason_element* element = aason_finalise_allocate_elements(&finaliser, 1);
 		element->key_offset = (uint32_t)(self->begin - buffer);
 		element->key_len = (uint32_t)(self->end - self->begin);
 		element->line = self->line;
 		element->column = self->column;
 
-		sdd_token* token = sdd_finalise_get_next_token(&ctx);
-		sdd_finalise_parse_element(&ctx, self, token, element, false);
+		aason_token* token = aason_finalise_get_next_token(&finaliser);
+		aason_finalise_parse_element(&finaliser, self, token, element, false);
 	
-		rgs_assert(ctx.element_index == sdd->element_count);
+		rgs_assert(finaliser.element_index == ctx->element_count);
 
 		return true;
 	}

@@ -1,82 +1,82 @@
-static char* sdd_write_new_line(rgs_sdd* sdd, char* out)
+static char* aason_write_new_line(aason_context* ctx, char* out)
 {
-	if (sdd->first)
-		sdd->first = false;
+	if (ctx->first)
+		ctx->first = false;
 	else
 		*out++ = ',';
 
-	if (sdd->first_line)
+	if (ctx->first_line)
 	{
-		rgs_assert(sdd->stack_depth == 0);
+		rgs_assert(ctx->stack_depth == 0);
 
-		sdd->first_line = false;
+		ctx->first_line = false;
 	}
 	else
 	{
 		*out++ = '\n';
-		for (uint32_t i = 0; i < sdd->stack_depth; ++i)
+		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
 			*out++ = '\t';
 	}
 
 	return out;
 }
 
-static void sdd_write_flush(rgs_sdd* sdd)
+static void aason_write_flush(aason_context* ctx)
 {
-	if (sdd->offset)
+	if (ctx->offset)
 	{
-		sdd->write_str(sdd->user_data, sdd->buffer, sdd->offset);
-		sdd->offset = 0;
+		ctx->write_str(ctx->user_data, ctx->buffer, ctx->offset);
+		ctx->offset = 0;
 	}
 }
 
-static void sdd_write_str(rgs_sdd* sdd, const char* str, int64_t size)
+static void aason_write_str(aason_context* ctx, const char* str, int64_t size)
 {
-	sdd_write_flush(sdd);
-	sdd->write_str(sdd->user_data, str, size);
+	aason_write_flush(ctx);
+	ctx->write_str(ctx->user_data, str, size);
 }
 
-static char* sdd_write_alloc(rgs_sdd* sdd, int64_t size)
+static char* aason_write_alloc(aason_context* ctx, int64_t size)
 {
 	rgs_assert(size <= RGS_SDD_WRITE_BUFFER_SIZE);
 
-	if (sdd->offset + size > RGS_SDD_WRITE_BUFFER_SIZE)
-		sdd_write_flush(sdd);
+	if (ctx->offset + size > RGS_SDD_WRITE_BUFFER_SIZE)
+		aason_write_flush(ctx);
 
-	char* out = sdd->buffer + sdd->offset;
-	sdd->offset += size;
+	char* out = ctx->buffer + ctx->offset;
+	ctx->offset += size;
 
 	return out;
 }
 
-static char* sdd_write_add_array_element(rgs_sdd* sdd, int64_t value_len, int64_t extra_len)
+static char* aason_write_add_array_element(aason_context* ctx, int64_t value_len, int64_t extra_len)
 {
-	rgs_assert(sdd);
+	rgs_assert(ctx);
 	rgs_assert(value_len >= 0);
 	rgs_assert(extra_len >= 0);
 
-	const uint32_t stack_depth = sdd->stack_depth;
-	const int64_t len = value_len + stack_depth + extra_len + !sdd->first + 1;
+	const uint32_t stack_depth = ctx->stack_depth;
+	const int64_t len = value_len + stack_depth + extra_len + !ctx->first + 1;
 
-	return sdd_write_new_line(sdd, sdd_write_alloc(sdd, len));
+	return aason_write_new_line(ctx, aason_write_alloc(ctx, len));
 }
 
-static char* sdd_write_add_object_element(rgs_sdd* sdd, const char* key, int64_t value_len, int64_t extra_len)
+static char* aason_write_add_object_element(aason_context* ctx, const char* key, int64_t value_len, int64_t extra_len)
 {
-	rgs_assert(sdd);
+	rgs_assert(ctx);
 	rgs_assert(key);
 	rgs_assert(*key);
 	rgs_assert(value_len >= 0);
 	rgs_assert(extra_len >= 0);
 
-	const bool first = sdd->first;
-	const bool first_line = sdd->first_line;
-	const uint32_t stack_depth = sdd->stack_depth;
+	const bool first = ctx->first;
+	const bool first_line = ctx->first_line;
+	const uint32_t stack_depth = ctx->stack_depth;
 	const int64_t key_len = strlen(key);
 	rgs_assert(key_len <= RGS_SDD_KEY_MAX_LEN);
 
 	const int64_t len = key_len + value_len + stack_depth + extra_len + !first + !first_line + 2;
-	char* out = sdd_write_new_line(sdd, sdd_write_alloc(sdd, len));
+	char* out = aason_write_new_line(ctx, aason_write_alloc(ctx, len));
 	memcpy(out, key, key_len);
 	out += key_len;
 	*out++ = ':';
@@ -85,113 +85,113 @@ static char* sdd_write_add_object_element(rgs_sdd* sdd, const char* key, int64_t
 	return out;
 }
 
-rgs_sdd* rgs_sdd_write(rgs_sdd_write_callback callback, void* user_data)
+aason_context* aason_write(aason_write_callback callback, void* user_data)
 {
 	rgs_assert(callback);
 
-	rgs_sdd* sdd = rgs_alloc(RGS_PAGE_SIZE, RGS_PAGE_SIZE);
-	sdd->buffer = (char*)(sdd + 1);
-	sdd->error = rgs_sdd_error_none;
-	sdd->reading = false;
-	sdd->stack_depth = 0;
-	sdd->user_data = user_data;
-	sdd->first = true;
-	sdd->first_line = true;
-	sdd->offset = 0;
-	sdd->write_str = callback;
+	aason_context* ctx = rgs_alloc(RGS_PAGE_SIZE, RGS_PAGE_SIZE);
+	ctx->buffer = (char*)(ctx + 1);
+	ctx->error = aason_error_none;
+	ctx->reading = false;
+	ctx->stack_depth = 0;
+	ctx->user_data = user_data;
+	ctx->first = true;
+	ctx->first_line = true;
+	ctx->offset = 0;
+	ctx->write_str = callback;
 
-	return sdd;
+	return ctx;
 }
 
 // TODO: Move
-void rgs_sdd_destroy(rgs_sdd* sdd)
+void aason_destroy(aason_context* ctx)
 {
-	if (!sdd->reading)
-		sdd_write_flush(sdd);
+	if (!ctx->reading)
+		aason_write_flush(ctx);
 
-	rgs_free(sdd);
+	rgs_free(ctx);
 }
 
-void rgs_sdd_write_array_enter(rgs_sdd* sdd, const char* key)
+void aason_write_array_enter(aason_context* ctx, const char* key)
 {
-	char* out = sdd_write_add_object_element(sdd, key, 0, 1);
+	char* out = aason_write_add_object_element(ctx, key, 0, 1);
 	*out = '[';
 
-	++sdd->stack_depth;
-	sdd->first = true;
+	++ctx->stack_depth;
+	ctx->first = true;
 }
 
-void rgs_sdd_write_array_leave(rgs_sdd* sdd)
+void aason_write_array_leave(aason_context* ctx)
 {
-	rgs_assert(sdd);
-	rgs_assert(sdd->stack_depth > 0);
+	rgs_assert(ctx);
+	rgs_assert(ctx->stack_depth > 0);
 
-	const int64_t stack_depth = --sdd->stack_depth;
+	const int64_t stack_depth = --ctx->stack_depth;
 
-	if (sdd->first)
+	if (ctx->first)
 	{
-		*sdd_write_alloc(sdd, 1) = ']';
+		*aason_write_alloc(ctx, 1) = ']';
 	}
 	else
 	{
-		char* out = sdd_write_alloc(sdd, stack_depth + 2);
+		char* out = aason_write_alloc(ctx, stack_depth + 2);
 		*out++ = '\n';
-		for (uint32_t i = 0; i < sdd->stack_depth; ++i)
+		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
 			*out++ = '\t';
 		*out++ = ']';
 	}
 
-	sdd->first = false;
+	ctx->first = false;
 }
 
-void rgs_sdd_write_array_object_enter(rgs_sdd* sdd)
+void aason_write_array_object_enter(aason_context* ctx)
 {
-	*sdd_write_add_array_element(sdd, 0, 1) = '{';
-	++sdd->stack_depth;
-	sdd->first = true;
+	*aason_write_add_array_element(ctx, 0, 1) = '{';
+	++ctx->stack_depth;
+	ctx->first = true;
 }
 
-void rgs_sdd_write_array_object_leave(rgs_sdd* sdd)
+void aason_write_array_object_leave(aason_context* ctx)
 {
-	rgs_sdd_write_object_leave(sdd);
+	aason_write_object_leave(ctx);
 }
 
-void rgs_sdd_write_array_str(rgs_sdd* sdd, const char* value)
+void aason_write_array_str(aason_context* ctx, const char* value)
 {
 	rgs_assert(value);
 	rgs_assert(*value);
 
 	const int64_t len = strlen(value);
-	*sdd_write_add_array_element(sdd, 1, 0) = '"';
-	sdd_write_str(sdd, value, len);
-	*sdd_write_alloc(sdd, 1) = '"';
+	*aason_write_add_array_element(ctx, 1, 0) = '"';
+	aason_write_str(ctx, value, len);
+	*aason_write_alloc(ctx, 1) = '"';
 }
 
-void rgs_sdd_write_array_int(rgs_sdd* sdd, int64_t value)
+void aason_write_array_int(aason_context* ctx, int64_t value)
 {
-	char* out = sdd_write_add_array_element(sdd, rgs_strlen_int(value, rgs_int_base_dec, 0), 0);
+	char* out = aason_write_add_array_element(ctx, rgs_strlen_int(value, rgs_int_base_dec, 0), 0);
 	rgs_to_string_unsafe_int(out, value, rgs_int_base_dec, 0);
 }
 
-void rgs_sdd_write_array_bool(rgs_sdd* sdd, bool value)
+void aason_write_array_bool(aason_context* ctx, bool value)
 {
-	char* out = sdd_write_add_array_element(sdd, rgs_strlen_bool(value), 0);
+	char* out = aason_write_add_array_element(ctx, rgs_strlen_bool(value), 0);
 	rgs_to_string_unsafe_bool(out, value);
 }
 
-void rgs_sdd_write_array_hash(rgs_sdd* sdd, uint32_t value)
+void aason_write_array_hash(aason_context* ctx, uint32_t value)
 {
-	char* out = sdd_write_add_array_element(sdd, 8, 1);
+	char* out = aason_write_add_array_element(ctx, 8, 1);
 	rgs_to_string_unsafe_uint(out, value, rgs_int_base_hex, 8);
 }
 
-void rgs_sdd_write_array_float(rgs_sdd* sdd, float value)
+void aason_write_array_float(aason_context* ctx, float value)
 {
-	char* out = sdd_write_add_array_element(sdd, rgs_strlen_float(value, RGS_FLOAT_DECIMAL_PLACES_MAX), 0);
+	char* out = aason_write_add_array_element(ctx, rgs_strlen_float(value, RGS_FLOAT_DECIMAL_PLACES_MAX), 0);
 	rgs_to_string_unsafe_float(out, value, RGS_FLOAT_DECIMAL_PLACES_MAX);
 }
 
-void rgs_sdd_write_array_enum(rgs_sdd* sdd, int32_t value, const char** strings, int32_t count)
+void aason_write_array_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count)
 {
 	rgs_assert(strings);
 	rgs_assert(value >= 0);
@@ -201,81 +201,81 @@ void rgs_sdd_write_array_enum(rgs_sdd* sdd, int32_t value, const char** strings,
 	const int64_t len = strlen(strings[value]);
 	rgs_assert(len <= RGS_SDD_ENUM_MAX_LEN);
 
-	char* out = sdd_write_add_array_element(sdd, len, 0);
+	char* out = aason_write_add_array_element(ctx, len, 0);
 	memcpy(out, strings[value], len);
 }
 
-void rgs_sdd_write_object_enter(rgs_sdd* sdd, const char* key)
+void aason_write_object_enter(aason_context* ctx, const char* key)
 {
-	*sdd_write_add_object_element(sdd, key, 0, 1) = '{';
-	++sdd->stack_depth;
-	sdd->first = true;
+	*aason_write_add_object_element(ctx, key, 0, 1) = '{';
+	++ctx->stack_depth;
+	ctx->first = true;
 }
 
-void rgs_sdd_write_object_leave(rgs_sdd* sdd)
+void aason_write_object_leave(aason_context* ctx)
 {
-	rgs_assert(sdd);
-	rgs_assert(sdd->stack_depth > 0);
+	rgs_assert(ctx);
+	rgs_assert(ctx->stack_depth > 0);
 
-	const int64_t stack_depth = --sdd->stack_depth;
+	const int64_t stack_depth = --ctx->stack_depth;
 
-	if (sdd->first)
+	if (ctx->first)
 	{
-		*sdd_write_alloc(sdd, 1) = '}';
+		*aason_write_alloc(sdd, 1) = '}';
 	}
 	else
 	{
 		const int64_t len = stack_depth + 2;
-		char* out = sdd_write_alloc(sdd, len);
+		char* out = aason_write_alloc(ctx, len);
 
 		*out++ = '\n';
-		for (uint32_t i = 0; i < sdd->stack_depth; ++i)
+		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
 			*out++ = '\t';
 		*out++ = '}';
 	}
 
-	sdd->first = false;
+	ctx->first = false;
 }
 
-void rgs_sdd_write_object_str(rgs_sdd* sdd, const char* key, const char* value)
+void aason_write_object_str(aason_context* ctx, const char* key, const char* value)
 {
 	rgs_assert(value);
 	rgs_assert(*value);
 
 	const int64_t len = strlen(value);
-	char* out = sdd_write_add_object_element(sdd, key, len, 2); // ""
+	char* out = aason_write_add_object_element(ctx, key, len, 2); // ""
 	*out++ = '"';
 	memcpy(out, value, len);
 	out += len;
 	*out = '"';
 }
 
-void rgs_sdd_write_object_int(rgs_sdd* sdd, const char* key, int64_t value)
+void aason_write_object_int(aason_context* ctx, const char* key, int64_t value)
 {
-	char* out = sdd_write_add_object_element(sdd, key, rgs_strlen_int(value, rgs_int_base_dec, 0), 0);
+	char* out = aason_write_add_object_element(ctx, key, rgs_strlen_int(value, rgs_int_base_dec, 0), 0);
 	rgs_to_string_unsafe_int(out, value, rgs_int_base_dec, 0);
 }
 
-void rgs_sdd_write_object_bool(rgs_sdd* sdd, const char* key, bool value)
+void aason_write_object_bool(aason_context* ctx, const char* key, bool value)
 {
-	char* out = sdd_write_add_object_element(sdd, key, rgs_strlen_bool(value), 0);
+	char* out = aason_write_add_object_element(ctx, key, rgs_strlen_bool(value), 0);
 	rgs_to_string_unsafe_bool(out, value);
 }
 
-void rgs_sdd_write_object_hash(rgs_sdd* sdd, const char* key, uint32_t value)
+void aason_write_object_hash(aason_context* ctx, const char* key, uint32_t value)
 {
-	char* out = sdd_write_add_object_element(sdd, key, 8, 1);
+	char* out = aason_write_add_object_element(ctx, key, 8, 1);
 	*out++ = '#';
 	rgs_to_string_unsafe_uint(out, value, rgs_int_base_hex, 8);
 }
 
-void rgs_sdd_write_object_float(rgs_sdd* sdd, const char* key, float value)
+void aason_write_object_float(aason_context* ctx, const char* key, float value)
 {
-	char* out = sdd_write_add_object_element(sdd, key, rgs_strlen_float(value, RGS_FLOAT_DECIMAL_PLACES_MAX), 0);
+	char* out = aason_write_add_object_element(ctx, key, rgs_strlen_float(value, RGS_FLOAT_DECIMAL_PLACES_MAX), 0);
 	rgs_to_string_unsafe_float(out, value, RGS_FLOAT_DECIMAL_PLACES_MAX);
 }
 
-void rgs_sdd_write_object_enum(rgs_sdd* sdd, const char* key, int32_t value, const char** strings, int32_t count)
+void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value, const char** strings, int32_t count)
 {
 	rgs_assert(strings);
 	rgs_assert(value >= 0);
@@ -283,6 +283,6 @@ void rgs_sdd_write_object_enum(rgs_sdd* sdd, const char* key, int32_t value, con
 	rgs_assert(value < count);
 
 	const int64_t len = strlen(strings[value]);
-	char* out = sdd_write_add_object_element(sdd, key, len, 0);
+	char* out = aason_write_add_object_element(ctx, key, len, 0);
 	memcpy(out, strings[value], len);
 }

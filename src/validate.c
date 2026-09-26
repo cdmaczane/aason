@@ -1,25 +1,25 @@
 typedef struct
 {
-	rgs_sdd*	sdd;
-	sdd_token*	tokens;
-	uint32_t	line;
-	uint32_t	column;
-	uint32_t	current_token;
-	uint32_t	depth;
-	uint32_t	max_depth;
-	uint32_t	element_count;
-	jmp_buf		jmp_ctx;
-} sdd_validate_ctx;
+	aason_context*	ctx;
+	aason_token*	tokens;
+	uint32_t		line;
+	uint32_t		column;
+	uint32_t		current_token;
+	uint32_t		depth;
+	uint32_t		max_depth;
+	uint32_t		element_count;
+	jmp_buf			jmp_ctx;
+} aason_validator;
 
-static void sdd_validate_error(sdd_validate_ctx* ctx, rgs_sdd_error error, const char* fmt, ...)
+static void aason_validate_error(aason_validator* validator, aason_error error, const char* fmt, ...)
 {
 	char buffer[rgs_kib(4)];
 
-	ctx->sdd->error = error;
-	ctx->sdd->error_line = ctx->line;
-	ctx->sdd->error_column = ctx->column;
+	validator->ctx->error = error;
+	validator->ctx->error_line = validator->line;
+	validator->ctx->error_column = validator->column;
 
-	if (ctx->sdd->error_callback)
+	if (validator->ctx->error_callback)
 	{
 		va_list args;
 		va_start(args, fmt);
@@ -27,158 +27,158 @@ static void sdd_validate_error(sdd_validate_ctx* ctx, rgs_sdd_error error, const
 		(void)len;
 		va_end(args);
 	
-		ctx->sdd->error_callback(ctx->sdd->user_data, error, ctx->line, ctx->column, buffer);
+		validator->ctx->error_callback(validator->ctx->user_data, error, validator->line, validator->column, buffer);
 	}
 
-	longjmp(ctx->jmp_ctx, 1);
+	longjmp(validator->jmp_ctx, 1);
 }
 
-static sdd_token_type sdd_validate_get_next_token(sdd_validate_ctx* ctx, sdd_token** out_token)
+static aason_token_type aason_validate_get_next_token(aason_validator* validator, aason_token** out_token)
 {
 	// TODO: Check if this could occur from bad data and, if so, convert to an error
-	rgs_assert(ctx->current_token < rgs_scratch_array_count(ctx->tokens));
+	rgs_assert(validator->current_token < rgs_scratch_array_count(validator->tokens));
 
-	sdd_token* token = &ctx->tokens[ctx->current_token++];
+	aason_token* token = &validator->tokens[validator->current_token++];
 	*out_token = token;
 
-	ctx->line = token->line;
-	ctx->column = token->column;
+	validator->line = token->line;
+	validator->column = token->column;
 
 	return token->type;
 }
 
-static void sdd_validate_expect_token(sdd_validate_ctx* ctx, sdd_token_type type, sdd_token** out_token)
+static void aason_validate_expect_token(aason_validator* validator, aason_token_type type, aason_token** out_token)
 {
-	const sdd_token_type token_type = sdd_validate_get_next_token(ctx, out_token);
+	const aason_token_type token_type = aason_validate_get_next_token(validator, out_token);
 
 	if (token_type != type)
 	{
-		sdd_validate_error(ctx, rgs_sdd_error_unexpected_token,
+		aason_validate_error(ctx, aason_error_unexpected_token,
 			"Token '{s}' found instead of expected token '{s}'",
-			sdd_token_type_strings[token_type], sdd_token_type_strings[type]
+			aason_token_type_strings[token_type], aason_token_type_strings[type]
 		);
 	}
 }
 
-static sdd_token_type sdd_validate_expect_either_token(sdd_validate_ctx* ctx, sdd_token_type type1, sdd_token_type type2, sdd_token** out_token)
+static aason_token_type aason_validate_expect_either_token(aason_validator* validator, aason_token_type type1, aason_token_type type2, aason_token** out_token)
 {
-	const sdd_token_type token_type = sdd_validate_get_next_token(ctx, out_token);
+	const aason_token_type token_type = aason_validate_get_next_token(validator, out_token);
 
 	if (!(token_type == type1 || token_type == type2))
 	{
-		sdd_validate_error(ctx, rgs_sdd_error_unexpected_token,
+		aason_validate_error(validator, aason_error_unexpected_token,
 			"Token '{s}' found instead of expected tokens '{s}' or '{s}'",
-			sdd_token_type_strings[token_type], sdd_token_type_strings[type1], sdd_token_type_strings[type2]
+			aason_token_type_strings[token_type], aason_token_type_strings[type1], aason_token_type_strings[type2]
 		);
 	}
 
 	return token_type;
 }
 
-static void sdd_validate_array(sdd_validate_ctx* ctx, sdd_token* parent);
+static void aason_validate_array(aason_validator* validator, aason_token* parent);
 
-static void sdd_validate_object(sdd_validate_ctx* ctx, sdd_token* parent)
+static void aason_validate_object(aason_validator* validator, aason_token* parent)
 {
-	sdd_token* self;
-	sdd_token* token;
+	aason_token* self;
+	aason_token* token;
 
-	if (++ctx->depth > ctx->max_depth)
-		ctx->max_depth = ctx->depth;
+	if (++validator->depth > validator->max_depth)
+		validator->max_depth = validator->depth;
 
 	for (;;)
 	{
-		sdd_validate_expect_token(ctx, sdd_token_type_identifier, &self);
-		sdd_validate_expect_token(ctx, sdd_token_type_colon, &token);
+		aason_validate_expect_token(validator, aason_token_type_identifier, &self);
+		aason_validate_expect_token(validator, aason_token_type_colon, &token);
 
-		switch (sdd_validate_get_next_token(ctx, &token))
+		switch (aason_validate_get_next_token(validator, &token))
 		{
-		case sdd_token_type_str:
-		case sdd_token_type_bin:
-		case sdd_token_type_dec:
-		case sdd_token_type_hex:
-		case sdd_token_type_hash:
-		case sdd_token_type_true:
-		case sdd_token_type_false:
-		case sdd_token_type_float:
-		case sdd_token_type_hash_str:
-		case sdd_token_type_identifier:
+		case aason_token_type_str:
+		case aason_token_type_bin:
+		case aason_token_type_dec:
+		case aason_token_type_hex:
+		case aason_token_type_hash:
+		case aason_token_type_true:
+		case aason_token_type_false:
+		case aason_token_type_float:
+		case aason_token_type_hash_str:
+		case aason_token_type_identifier:
 			++parent->count;
 			break;
-		case sdd_token_type_enter_array:
-			sdd_validate_array(ctx, self);
+		case aason_token_type_enter_array:
+			sdd_validate_array(validator, self);
 			++parent->count;
 			break;
-		case sdd_token_type_enter_object:
-			sdd_validate_object(ctx, self);
+		case aason_token_type_enter_object:
+			aason_validate_object(validator, self);
 			++parent->count;
 			break;
 		default:
-			sdd_validate_error(ctx, rgs_sdd_error_unexpected_token,
-				"Unexpected token '{s}'", sdd_token_type_strings[token->type]
+			aason_validate_error(validator, rgs_sdd_error_unexpected_token,
+				"Unexpected token '{s}'", aason_token_type_strings[token->type]
 			);
 		}
 
-		++ctx->element_count;
+		++validator->element_count;
 
-		if (sdd_validate_expect_either_token(ctx, sdd_token_type_comma, sdd_token_type_leave_object, &token) == sdd_token_type_leave_object)
+		if (aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_object, &token) == aason_token_type_leave_object)
 		{
-			--ctx->depth;
+			--validator->depth;
 			return;
 		}
 	}
 }
 
-static void sdd_validate_array(sdd_validate_ctx* ctx, sdd_token* parent)
+static void aason_validate_array(aason_validator* validator, aason_token* parent)
 {
-	sdd_token* token;
+	aason_token* token;
 
-	if (++ctx->depth > ctx->max_depth)
-		ctx->max_depth = ctx->depth;
+	if (++validator->depth > validator->max_depth)
+		validator->max_depth = validator->depth;
 
 	for (;;)
 	{
-		switch (sdd_validate_get_next_token(ctx, &token))
+		switch (aason_validate_get_next_token(validator, &token))
 		{
-		case sdd_token_type_str:
-		case sdd_token_type_bin:
-		case sdd_token_type_dec:
-		case sdd_token_type_hex:
-		case sdd_token_type_hash:
-		case sdd_token_type_true:
-		case sdd_token_type_false:
-		case sdd_token_type_float:
-		case sdd_token_type_hash_str:
-		case sdd_token_type_identifier:
+		case aason_token_type_str:
+		case aason_token_type_bin:
+		case aason_token_type_dec:
+		case aason_token_type_hex:
+		case aason_token_type_hash:
+		case aason_token_type_true:
+		case aason_token_type_false:
+		case aason_token_type_float:
+		case aason_token_type_hash_str:
+		case aason_token_type_identifier:
 			++parent->count;
 			break;
-		case sdd_token_type_enter_object:
-			sdd_validate_object(ctx, token);
+		case aason_token_type_enter_object:
+			aason_validate_object(validator, token);
 			++parent->count;
 			break;
-		case sdd_token_type_leave_array:
+		case aason_token_type_leave_array:
 			// Empty array
-			--ctx->depth;
+			--validator->depth;
 			return;
 		default:
-			sdd_validate_error(ctx, rgs_sdd_error_unexpected_token,
-				"Unexpected token '{s}'", sdd_token_type_strings[token->type]
+			aason_validate_error(validator, aason_error_unexpected_token,
+				"Unexpected token '{s}'", aason_token_type_strings[token->type]
 			);
 		}
 
-		++ctx->element_count;
+		++validator->element_count;
 
-		if (sdd_validate_expect_either_token(ctx, sdd_token_type_comma, sdd_token_type_leave_array, &token) == sdd_token_type_leave_array)
+		if (aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_array, &token) == aason_token_type_leave_array)
 		{
-			--ctx->depth;
+			--validator->depth;
 			return;
 		}
 	}
 }
 
-static bool sdd_validate(rgs_sdd* sdd, sdd_token* tokens)
+static bool aason_validate(aason_context* ctx, sdd_token* tokens)
 {
-	sdd_validate_ctx ctx = {
-		.sdd			= sdd,
+	aason_validator validator = {
+		.aason_context*	= ctx,
 		.tokens			= tokens,
 		.line			= 1,
 		.column			= 1,
@@ -188,44 +188,44 @@ static bool sdd_validate(rgs_sdd* sdd, sdd_token* tokens)
 		.element_count	= 0
 	};
 
-	if (!setjmp(ctx.jmp_ctx))
+	if (!setjmp(validator.jmp_ctx))
 	{
-		sdd_token* self;
-		sdd_token* token;
-		sdd_validate_expect_token(&ctx, sdd_token_type_identifier, &self);
-		sdd_validate_expect_token(&ctx, sdd_token_type_colon, &token);
+		aason_token* self;
+		aason_token* token;
+		aason_validate_expect_token(&validator, aason_token_type_identifier, &self);
+		aason_validate_expect_token(&validator, aason_token_type_colon, &token);
 	
-		switch (sdd_validate_get_next_token(&ctx, &token))
+		switch (aason_validate_get_next_token(&validator, &token))
 		{
-		case sdd_token_type_str:
-		case sdd_token_type_bin:
-		case sdd_token_type_dec:
-		case sdd_token_type_hex:
-		case sdd_token_type_hash:
-		case sdd_token_type_true:
-		case sdd_token_type_false:
-		case sdd_token_type_float:
-		case sdd_token_type_hash_str:
-		case sdd_token_type_identifier:
+		case aason_token_type_str:
+		case aason_token_type_bin:
+		case aason_token_type_dec:
+		case aason_token_type_hex:
+		case aason_token_type_hash:
+		case aason_token_type_true:
+		case aason_token_type_false:
+		case aason_token_type_float:
+		case aason_token_type_hash_str:
+		case aason_token_type_identifier:
 			break;
-		case sdd_token_type_enter_array:
-			sdd_validate_array(&ctx, self);
+		case aason_token_type_enter_array:
+			aason_validate_array(&validator, self);
 			break;
-		case sdd_token_type_enter_object:
-			sdd_validate_object(&ctx, self);
+		case aason_token_type_enter_object:
+			aason_validate_object(&validator, self);
 			break;
 		default:
-			sdd_validate_error(&ctx, rgs_sdd_error_unexpected_token,
-				"Unexpected token '{s}'", sdd_token_type_strings[token->type]
+			aason_validate_error(&validator, rgs_sdd_error_unexpected_token,
+				"Unexpected token '{s}'", aason_token_type_strings[token->type]
 			);
 		}
 	
-		sdd_validate_expect_token(&ctx, sdd_token_type_eof, &token);
+		aason_validate_expect_token(&validator, aason_token_type_eof, &token);
 	
-		sdd->element_count = ctx.element_count + 1;
-		sdd->max_stack_depth = ctx.max_depth;
+		validator->element_count = validator.element_count + 1;
+		validator->max_stack_depth = validator.max_depth;
 	
-		rgs_assert(ctx.depth == 1);
+		rgs_assert(validator.depth == 1);
 
 		return true;
 	}

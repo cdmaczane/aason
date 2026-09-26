@@ -1,13 +1,13 @@
-bool rgs_sdd_reading(const rgs_sdd* sdd)
+bool aason_reading(const aason_context* ctx)
 {
 	rgs_assert(sdd);
 
-	return sdd->reading;
+	return ctx->reading;
 }
 
-bool rgs_sdd_writing(const rgs_sdd* sdd)
+bool aason_writing(const aason_context* ctx)
 {
 	rgs_assert(sdd);
 
-	return !sdd->reading;
+	return !ctx->reading;
 }
