@@ -145,66 +145,77 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 	return nullptr;
 }
 
+static size_t aason_align_size(size_t size)
+{
+	const size_t alignment = sizeof(void*);
+	return (size + (alignment - 1)) & ~(alignment - 1);
+}
+
 aason_context* aason_read(const aason_read_desc* desc)
 {
-	aason_assert(src);
-	aason_assert(size >= 0);
-	aason_assert(tab_size <= 8);
+	aason_assert(desc);
+	aason_assert(desc->source);
+	aason_assert(desc->tab_size <= 8);
 
-	//RGS_PROFILE_FUNCTION_BEGIN();
-	//rgs_frame frame = rgs_scratch_push();
+	aason_context* ctx = nullptr;
 
-	if (tab_size == 0)
-		tab_size = 4;
+	// Store context on the stack until we know how much memory the parser requires
+	aason_context temp_ctx = {
+		.buffer = desc->source,
+		.error = aason_error_none,
+		.reading = true,
+		.read_desc = desc
+	};
 
-	// TODO: Use the stack initially then copy if parsing was successful
-	aason_context* result = nullptr;
-	aason_context* ctx = rgs_scratch_alloc_type(aason_context);
+	// Use 4-space tabs by default
+	const uint32_t tab_size = desc->tab_size ? desc->tab_size : 4;
 
-	ctx->buffer = src;
-	ctx->error = aason_error_none;
-	ctx->reading = true;
-	ctx->user_data = user_data;
-	ctx->error_callback = callback;
-
-	aason_token* tokens = aason_tokenise(ctx, src, size, tab_size);
-	if (ctx->error == aason_error_none)
+	aason_tokens tokens = aason_tokenise(&temp_ctx, desc->source, desc->length, tab_size);
+	if (temp_ctx.error == aason_error_none)
 	{
-		if (aason_validate(ctx, tokens))
+		if (aason_validate(&temp_ctx, &tokens))
 		{
-			// TODO: Just allocate all memory up front
-			ctx->elements = rgs_scratch_alloc_array(aason_element, ctx->element_count);
-			ctx->stack = rgs_scratch_alloc_array(aason_stack_entry, ctx->max_stack_depth);
-			ctx->stack[0] = (aason_stack_entry){};
+			// Calculate the amount of memory required for parsing
+			const size_t context_size	= aason_align_size(sizeof(aason_context));
+			const size_t element_size	= aason_align_size(sizeof(aason_element) * temp_ctx.element_count);
+			const size_t stack_size		= aason_align_size(sizeof(aason_stack_entry) * temp_ctx.max_stack_depth);
+			const size_t packed_size	= context_size + element_size + stack_size;
 
-			if (aason_finalise(ctx, src, tokens))
+			// Allocate all parsing memory in one go
+			uint8_t* alloc = (uint8_t*)desc->allocator(desc->allocator_data, nullptr, 0, packed_size);
+			if (alloc)
 			{
-				int64_t packed_size = 0;
-				packed_size += rgs_packed_alloc_add_value(packed_size, aason_context);
-				packed_size += rgs_packed_alloc_add_array(packed_size, aason_element, sdd->element_count);
-				packed_size += rgs_packed_alloc_add_array(packed_size, aason_stack_entry, sdd->max_stack_depth);
+				// Copy context from stack
+				ctx = (aason_context*)alloc;
+				memcpy(ctx, &temp_ctx, sizeof(aason_context));
+				alloc += context_size;
 
-				void* alloc = rgs_alloc_with(allocator, packed_size, alignof(aason_context));
-				aason_context* sdd_copy = rgs_packed_alloc_get_value(alloc, aason_context);
-				memcpy(sdd_copy, ctx, sizeof(aason_context));
+				// Element array
+				ctx->elements = (aason_element*)alloc;
+				alloc += element_size;
 
-				sdd_copy->elements = rgs_packed_alloc_get_array(alloc, aason_element, ctx->element_count);
-				memcpy(sdd_copy->elements, ctx->elements, sizeof(aason_element) * ctx->element_count);
+				// Stack
+				ctx->stack = (aason_stack_entry*)alloc;
+				ctx->stack[0] = (aason_stack_entry){};
 
-				sdd_copy->stack = rgs_packed_alloc_get_array(alloc, aason_stack_entry, ctx->max_stack_depth);
-				memcpy(sdd_copy->stack, ctx->stack, sizeof(aason_stack_entry) * ctx->max_stack_depth);
-
-				sdd_copy->stack_depth = 0;
-
-				result = sdd_copy;
+				if (aason_finalise(ctx, desc->source, &tokens))
+				{
+					ctx->stack_depth = 0;
+				}
+				else
+				{
+					// Free context in case of error
+					desc->allocator(desc->allocator_data, alloc, 0, 0);
+					ctx = nullptr;
+				}
 			}
 		}
+
+		// Free scratch token array
+		desc->scratch(desc->scratch_data, tokens.tokens, 0, 0);
 	}
 
-	//rgs_scratch_pop(frame);
-	//RGS_PROFILE_FUNCTION_END();
-
-	return result;
+	return ctx;
 }
 
 bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags flags, int64_t* size, int64_t max_size)
@@ -214,7 +225,7 @@ bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags fla
 	{
 		if (element->array_value.count > max_size)
 		{
-			aason_read_error(sdd, aason_error_buffer_too_small, element->line, element->column,
+			aason_read_error(ctx, aason_error_buffer_too_small, element->line, element->column,
 				"Array '{s}' size is {u32} but max size is {i64}",
 				key, element->array_value.count, max_size
 			);
@@ -278,7 +289,7 @@ void aason_read_array_leave_object(aason_context* ctx)
 	const uint32_t element_index = ctx->stack[ctx->stack_depth].element_index;
 	aason_assert(element_index < ctx->element_count);
 
-	const rgs_sdd_element* element = &ctx->elements[element_index];
+	const aason_element* element = &ctx->elements[element_index];
 	aason_assert(element->type == aason_type_object);
 
 	--ctx->stack_depth;
@@ -315,19 +326,19 @@ bool aason_read_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_
 
 		if (len < buffer_size)
 		{
-			// Handle length of 0
 			memcpy(value, str, len);
 			value[len] = 0;
 			return true;
 		}
 		else if (truncate)
 		{
-			rgs_str_cpy(value, str, buffer_size);
+			memcpy(value, str, buffer_size - 1);
+			value[buffer_size - 1] = 0;
 			return true;
 		}
 		else
 		{
-			aason_read_error(sdd, aason_error_buffer_too_small, element->line, element->column,
+			aason_read_error(ctx, aason_error_buffer_too_small, element->line, element->column,
 				"String element of length '{u32}' is too large for fixed sized buffer size of '{i64}'",
 				len, buffer_size
 			);
@@ -511,14 +522,14 @@ bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flag
 
 		if (len < buffer_size)
 		{
-			// Handle length of 0
 			memcpy(value, str, len);
 			value[len] = 0;
 			return true;
 		}
 		else if (truncate)
 		{
-			rgs_str_cpy(value, str, buffer_size);
+			memcpy(value, str, buffer_size - 1);
+			value[buffer_size - 1] = 0;
 			return true;
 		}
 		else
@@ -636,7 +647,7 @@ bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags fla
 			}
 		}
 
-		aason_read_error(sdd, aason_error_invalid_enum, element->line, element->column,
+		aason_read_error(ctx, aason_error_invalid_enum, element->line, element->column,
 			"Invalid enum value '{s}' found in element '{s}'", enum_value, key
 		);
 	}

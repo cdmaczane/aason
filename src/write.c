@@ -30,38 +30,56 @@ static void aason_write_flush(aason_context* ctx)
 	}
 }
 
-static void aason_write_str(aason_context* ctx, const char* str, int64_t size)
+static void aason_write_str(aason_context* ctx, const char* str, size_t size)
 {
 	aason_write_flush(ctx);
 	ctx->write_str(ctx->user_data, str, size);
 }
 
-static char* aason_write_alloc(aason_context* ctx, int64_t size)
+static char* aason_write_reserve(aason_context* ctx, size_t size)
 {
-	aason_assert(size <= RGS_SDD_WRITE_BUFFER_SIZE);
+	aason_assert(ctx->reserved == 0);
+	aason_assert(size <= ctx->buffer_size);
 
-	if (ctx->offset + size > RGS_SDD_WRITE_BUFFER_SIZE)
+	if (ctx->offset + size > ctx->buffer_size)
 		aason_write_flush(ctx);
 
 	char* out = ctx->buffer + ctx->offset;
-	ctx->offset += size;
+	ctx->reserved = ctx->offset + size;
 
 	return out;
 }
 
-static char* aason_write_add_array_element(aason_context* ctx, int64_t value_len, int64_t extra_len)
+static void aason_write_commit(aason_context* ctx, char* end)
+{
+	aason_assert(end >= ctx->buffer);
+	aason_assert(end <= ctx->buffer + ctx->reserved);
+
+	ctx->offset = end - ctx->buffer;
+	ctx->reserved = 0;
+}
+
+//static char* aason_write_alloc(aason_context* ctx, size_t size)
+//{
+//	char* out = aason_write_reserve(ctx, size);
+//	aason_write_commit(ctx, out + size);
+
+//	return out;
+//}
+
+static char* aason_write_add_array_element(aason_context* ctx, size_t value_len, size_t extra_len)
 {
 	aason_assert(ctx);
 	aason_assert(value_len >= 0);
 	aason_assert(extra_len >= 0);
 
 	const uint32_t stack_depth = ctx->stack_depth;
-	const int64_t len = value_len + stack_depth + extra_len + !ctx->first + 1;
+	const size_t len = value_len + stack_depth + extra_len + !ctx->first + 1;
 
-	return aason_write_new_line(ctx, aason_write_alloc(ctx, len));
+	return aason_write_new_line(ctx, aason_write_reserve(ctx, len));
 }
 
-static char* aason_write_add_object_element(aason_context* ctx, const char* key, int64_t value_len, int64_t extra_len)
+static char* aason_write_add_object_element(aason_context* ctx, const char* key, size_t value_len, size_t extra_len)
 {
 	aason_assert(ctx);
 	aason_assert(key);
@@ -72,11 +90,11 @@ static char* aason_write_add_object_element(aason_context* ctx, const char* key,
 	const bool first = ctx->first;
 	const bool first_line = ctx->first_line;
 	const uint32_t stack_depth = ctx->stack_depth;
-	const int64_t key_len = strlen(key);
-	aason_assert(key_len <= RGS_SDD_KEY_MAX_LEN);
+	const size_t key_len = strlen(key);
 
-	const int64_t len = key_len + value_len + stack_depth + extra_len + !first + !first_line + 2;
-	char* out = aason_write_new_line(ctx, aason_write_alloc(ctx, len));
+	const size_t len = key_len + value_len + stack_depth + extra_len + !first + !first_line + 2;
+	char* out = aason_write_new_line(ctx, aason_write_reserve(ctx, len));
+
 	memcpy(out, key, key_len);
 	out += key_len;
 	*out++ = ':';
@@ -85,20 +103,28 @@ static char* aason_write_add_object_element(aason_context* ctx, const char* key,
 	return out;
 }
 
-aason_context* aason_write(aason_write_callback callback, void* user_data)
+aason_context* aason_write(const aason_write_desc* desc)
 {
-	aason_assert(callback);
+	aason_assert(desc);
+	aason_assert(desc->buffer);
+	aason_assert(desc->buffer_size >= 4096); // Somewhat arbitrary
+	aason_assert(desc->callback);
 
-	aason_context* ctx = rgs_alloc(RGS_PAGE_SIZE, RGS_PAGE_SIZE);
-	ctx->buffer = (char*)(ctx + 1);
+	uint8_t* buffer = (uint8_t*)desc->buffer;
+
+	aason_context* ctx = (aason_context*)buffer;
+	buffer += sizeof(aason_context);
+
+	ctx->buffer = (char*)buffer;
 	ctx->error = aason_error_none;
 	ctx->reading = false;
 	ctx->stack_depth = 0;
-	ctx->user_data = user_data;
+	ctx->user_data = desc->user_data;
+	ctx->buffer_size = desc->buffer_size - sizeof(aason_context);
 	ctx->first = true;
 	ctx->first_line = true;
 	ctx->offset = 0;
-	ctx->write_str = callback;
+	ctx->write_str = desc->callback;
 
 	return ctx;
 }
@@ -106,7 +132,8 @@ aason_context* aason_write(aason_write_callback callback, void* user_data)
 void aason_write_array_enter(aason_context* ctx, const char* key)
 {
 	char* out = aason_write_add_object_element(ctx, key, 0, 1);
-	*out = '[';
+	*out++ = '[';
+	aason_write_commit(ctx, out);
 
 	++ctx->stack_depth;
 	ctx->first = true;
@@ -117,19 +144,22 @@ void aason_write_array_leave(aason_context* ctx)
 	aason_assert(ctx);
 	aason_assert(ctx->stack_depth > 0);
 
-	const int64_t stack_depth = --ctx->stack_depth;
+	const uint32_t stack_depth = --ctx->stack_depth;
 
 	if (ctx->first)
 	{
-		*aason_write_alloc(ctx, 1) = ']';
+		char* out = aason_write_reserve(ctx, 1);
+		*out++ = ']';
+		aason_write_commit(ctx, out);
 	}
 	else
 	{
-		char* out = aason_write_alloc(ctx, stack_depth + 2);
+		char* out = aason_write_reserve(ctx, stack_depth + 2);
 		*out++ = '\n';
 		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
 			*out++ = '\t';
 		*out++ = ']';
+		aason_write_commit(ctx, out);
 	}
 
 	ctx->first = false;
@@ -137,7 +167,10 @@ void aason_write_array_leave(aason_context* ctx)
 
 void aason_write_array_object_enter(aason_context* ctx)
 {
-	*aason_write_add_array_element(ctx, 0, 1) = '{';
+	char* out = aason_write_add_array_element(ctx, 0, 1);
+	*out++ = '{';
+	aason_write_commit(ctx, out);
+
 	++ctx->stack_depth;
 	ctx->first = true;
 }
@@ -152,34 +185,73 @@ void aason_write_array_str(aason_context* ctx, const char* value)
 	aason_assert(value);
 	aason_assert(*value);
 
-	const int64_t len = strlen(value);
-	*aason_write_add_array_element(ctx, 1, 0) = '"';
+	char* out = aason_write_add_array_element(ctx, 1, 0);
+	*out++ = '"';
+	aason_write_commit(ctx, out);
+
+	// Flush and write to callback directly in case string exceeds buffer size
+	const size_t len = strlen(value);
 	aason_write_str(ctx, value, len);
-	*aason_write_alloc(ctx, 1) = '"';
+
+	out = aason_write_reserve(ctx, 1);
+	*out++ = '"';
+	aason_write_commit(ctx, out);
+}
+
+enum
+{
+	aason_hash_len		= 9,
+	aason_int_max_len	= 20,
+	aason_bool_max_len	= 5,
+	aason_float_max_len	= 15
+};
+
+char* aason_to_string_int(char* out, int64_t value)
+{
+	return nullptr;
 }
 
 void aason_write_array_int(aason_context* ctx, int64_t value)
 {
-	char* out = aason_write_add_array_element(ctx, rgs_strlen_int(value, rgs_int_base_dec, 0), 0);
-	rgs_to_string_unsafe_int(out, value, rgs_int_base_dec, 0);
+	char* out = aason_write_add_array_element(ctx, aason_int_max_len, 0);
+	out = aason_to_string_int(out, value);
+	aason_write_commit(ctx, out);
+}
+
+char* aason_to_string_bool(char* out, bool value)
+{
+	return nullptr;
 }
 
 void aason_write_array_bool(aason_context* ctx, bool value)
 {
-	char* out = aason_write_add_array_element(ctx, rgs_strlen_bool(value), 0);
-	rgs_to_string_unsafe_bool(out, value);
+	char* out = aason_write_add_array_element(ctx, aason_bool_max_len, 0);
+	out = aason_to_string_bool(out, value);
+	aason_write_commit(ctx, out);
+}
+
+char* aason_to_string_hash(char* out, uint32_t value)
+{
+	return nullptr;
 }
 
 void aason_write_array_hash(aason_context* ctx, uint32_t value)
 {
-	char* out = aason_write_add_array_element(ctx, 8, 1);
-	rgs_to_string_unsafe_uint(out, value, rgs_int_base_hex, 8);
+	char* out = aason_write_add_array_element(ctx, aason_hash_len, 0);
+	out = aason_to_string_hash(out, value);
+	aason_write_commit(ctx, out);
+}
+
+char* aason_to_string_float(char* out, float value)
+{
+	return nullptr;
 }
 
 void aason_write_array_float(aason_context* ctx, float value)
 {
-	char* out = aason_write_add_array_element(ctx, rgs_strlen_float(value, RGS_FLOAT_DECIMAL_PLACES_MAX), 0);
-	rgs_to_string_unsafe_float(out, value, RGS_FLOAT_DECIMAL_PLACES_MAX);
+	char* out = aason_write_add_array_element(ctx, aason_float_max_len, 0);
+	out = aason_to_string_float(out, value);
+	aason_write_commit(ctx, out);
 }
 
 void aason_write_array_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count)
@@ -189,16 +261,19 @@ void aason_write_array_enum(aason_context* ctx, int32_t value, const char** stri
 	aason_assert(count > 0);
 	aason_assert(value < count);
 
-	const int64_t len = strlen(strings[value]);
-	aason_assert(len <= RGS_SDD_ENUM_MAX_LEN);
+	const size_t len = strlen(strings[value]);
 
 	char* out = aason_write_add_array_element(ctx, len, 0);
 	memcpy(out, strings[value], len);
+	aason_write_commit(ctx, out + len);
 }
 
 void aason_write_object_enter(aason_context* ctx, const char* key)
 {
-	*aason_write_add_object_element(ctx, key, 0, 1) = '{';
+	char* out = aason_write_add_object_element(ctx, key, 0, 1);
+	*out++ = '{';
+	aason_write_commit(ctx, out);
+
 	++ctx->stack_depth;
 	ctx->first = true;
 }
@@ -208,21 +283,24 @@ void aason_write_object_leave(aason_context* ctx)
 	aason_assert(ctx);
 	aason_assert(ctx->stack_depth > 0);
 
-	const int64_t stack_depth = --ctx->stack_depth;
+	const uint32_t stack_depth = --ctx->stack_depth;
 
 	if (ctx->first)
 	{
-		*aason_write_alloc(sdd, 1) = '}';
+		char* out = aason_write_reserve(ctx, 1);
+		*out++ = '}';
+		aason_write_commit(ctx, out);
 	}
 	else
 	{
-		const int64_t len = stack_depth + 2;
-		char* out = aason_write_alloc(ctx, len);
+		const size_t len = stack_depth + 2;
 
+		char* out = aason_write_reserve(ctx, len);
 		*out++ = '\n';
 		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
 			*out++ = '\t';
 		*out++ = '}';
+		aason_write_commit(ctx, out);
 	}
 
 	ctx->first = false;
@@ -233,37 +311,45 @@ void aason_write_object_str(aason_context* ctx, const char* key, const char* val
 	aason_assert(value);
 	aason_assert(*value);
 
-	const int64_t len = strlen(value);
-	char* out = aason_write_add_object_element(ctx, key, len, 2); // ""
+	char* out = aason_write_add_object_element(ctx, key, 1, 0);
 	*out++ = '"';
-	memcpy(out, value, len);
-	out += len;
-	*out = '"';
+	aason_write_commit(ctx, out);
+
+	// Flush and write to callback directly in case string exceeds buffer size
+	const size_t len = strlen(value);
+	aason_write_str(ctx, value, len);
+
+	out = aason_write_reserve(ctx, 1);
+	*out++ = '"';
+	aason_write_commit(ctx, out);
 }
 
 void aason_write_object_int(aason_context* ctx, const char* key, int64_t value)
 {
-	char* out = aason_write_add_object_element(ctx, key, rgs_strlen_int(value, rgs_int_base_dec, 0), 0);
-	rgs_to_string_unsafe_int(out, value, rgs_int_base_dec, 0);
+	char* out = aason_write_add_object_element(ctx, key, aason_int_max_len, 0);
+	out = aason_to_string_int(out, value);
+	aason_write_commit(ctx, out);
 }
 
 void aason_write_object_bool(aason_context* ctx, const char* key, bool value)
 {
-	char* out = aason_write_add_object_element(ctx, key, rgs_strlen_bool(value), 0);
-	rgs_to_string_unsafe_bool(out, value);
+	char* out = aason_write_add_object_element(ctx, key, aason_bool_max_len, 0);
+	out = aason_to_string_bool(out, value);
+	aason_write_commit(ctx, out);
 }
 
 void aason_write_object_hash(aason_context* ctx, const char* key, uint32_t value)
 {
-	char* out = aason_write_add_object_element(ctx, key, 8, 1);
-	*out++ = '#';
-	rgs_to_string_unsafe_uint(out, value, rgs_int_base_hex, 8);
+	char* out = aason_write_add_object_element(ctx, key, aason_hash_len, 0);
+	out = aason_to_string_hash(out, value);
+	aason_write_commit(ctx, out);
 }
 
 void aason_write_object_float(aason_context* ctx, const char* key, float value)
 {
-	char* out = aason_write_add_object_element(ctx, key, rgs_strlen_float(value, RGS_FLOAT_DECIMAL_PLACES_MAX), 0);
-	rgs_to_string_unsafe_float(out, value, RGS_FLOAT_DECIMAL_PLACES_MAX);
+	char* out = aason_write_add_object_element(ctx, key, aason_hash_len, 0);
+	out = aason_to_string_float(out, value);
+	aason_write_commit(ctx, out);
 }
 
 void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value, const char** strings, int32_t count)
@@ -273,7 +359,9 @@ void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value,
 	aason_assert(count > 0);
 	aason_assert(value < count);
 
-	const int64_t len = strlen(strings[value]);
+	const size_t len = strlen(strings[value]);
+
 	char* out = aason_write_add_object_element(ctx, key, len, 0);
 	memcpy(out, strings[value], len);
+	aason_write_commit(ctx, out + len);
 }

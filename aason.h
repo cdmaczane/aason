@@ -52,7 +52,7 @@ typedef void (*aason_write_callback)(void* user_data, const char* str, int64_t s
 
 typedef struct
 {
-	const char*				source;
+	char*					source;
 	size_t					length;
 	uint32_t				tab_size;
 	aason_error_callback	error_callback;
@@ -64,8 +64,16 @@ typedef struct
 	aason_format			format_string;
 } aason_read_desc;
 
+typedef struct
+{
+	void*					buffer;
+	size_t					buffer_size;
+	aason_write_callback	callback;
+	void*					user_data;
+} aason_write_desc;
+
 aason_context* aason_read(const aason_read_desc* desc);
-aason_context* aason_write(aason_write_callback callback, void* user_data);
+aason_context* aason_write(const aason_write_desc* desc);
 void aason_destroy(aason_context* ctx);
 bool aason_reading(const aason_context* ctx);
 bool aason_writing(const aason_context* ctx);

@@ -60,7 +60,6 @@ typedef struct
 } aason_stack_entry;
 
 // TODO: Allow mechanism to get line and column of last element read for external error handling.
-// TODO: Save error message for when not using error callbacks.
 // TODO: Can probably compact as some data will no longer be required once error has occurred.
 // TODO: Consider renaming elements within objects to "fields".
 struct aason_context
@@ -73,6 +72,7 @@ struct aason_context
 
 	union
 	{
+		// TODO: C++ doesn't support anonymous structs
 		struct
 		{
 			const aason_read_desc*	read_desc;
@@ -87,9 +87,11 @@ struct aason_context
 
 		struct
 		{
+			size_t					buffer_size;
 			bool					first;
 			bool					first_line;
-			int64_t					offset;
+			size_t					reserved;
+			size_t					offset; // TODO: Rename to committed
 			aason_write_callback	write_str;
 		};
 	};

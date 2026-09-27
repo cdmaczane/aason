@@ -16,35 +16,38 @@
 
 #include "src/archive.c"
 #include "src/tokenise.c"
+#include "src/validate.c"
 #include "src/finalise.c"
 #include "src/read.c"
-#include "src/validate.c"
 #include "src/write.c"
 
 static void aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args)
 {
-	if (ctx->format_string)
-		ctx->format_string(out, size, format, args);
+	if (ctx->read_desc->format_string)
+		ctx->read_desc->format_string(out, size, format, args);
 }
 
 void aason_destroy(aason_context* ctx)
 {
-	if (!ctx->reading)
-		aason_write_flush(ctx);
-
-	rgs_free(ctx);
+	if (ctx)
+	{
+		if (ctx->reading)
+			ctx->read_desc->allocator(ctx->read_desc->allocator_data, ctx, 0, 0);
+		else
+			aason_write_flush(ctx);
+	}
 }
 
 bool aason_reading(const aason_context* ctx)
 {
-	aason_assert(sdd);
+	aason_assert(ctx);
 
 	return ctx->reading;
 }
 
 bool aason_writing(const aason_context* ctx)
 {
-	aason_assert(sdd);
+	aason_assert(ctx);
 
 	return !ctx->reading;
 }

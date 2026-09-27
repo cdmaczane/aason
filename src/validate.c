@@ -1,7 +1,7 @@
 typedef struct
 {
 	aason_context*	ctx;
-	aason_token*	tokens;
+	aason_tokens*	tokens;
 	uint32_t		line;
 	uint32_t		column;
 	uint32_t		current_token;
@@ -13,21 +13,26 @@ typedef struct
 
 static void aason_validate_error(aason_validator* validator, aason_error error, const char* fmt, ...)
 {
-	char buffer[rgs_kib(4)];
+	char buffer[4096];
 
 	validator->ctx->error = error;
 	validator->ctx->error_line = validator->line;
 	validator->ctx->error_column = validator->column;
 
-	if (validator->ctx->error_callback)
+	if (validator->ctx->read_desc->error_callback)
 	{
 		va_list args;
 		va_start(args, fmt);
-		const int64_t len = rgs_format_impl(buffer, sizeof(buffer), fmt, args);
-		(void)len;
+		aason_format_string(validator->ctx, buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
-		validator->ctx->error_callback(validator->ctx->user_data, error, validator->line, validator->column, buffer);
+		validator->ctx->read_desc->error_callback(
+			validator->ctx->user_data,
+			error,
+			validator->line,
+			validator->column,
+			buffer
+		);
 	}
 
 	longjmp(validator->jmp_ctx, 1);
@@ -36,9 +41,9 @@ static void aason_validate_error(aason_validator* validator, aason_error error, 
 static aason_token_type aason_validate_get_next_token(aason_validator* validator, aason_token** out_token)
 {
 	// TODO: Check if this could occur from bad data and, if so, convert to an error
-	aason_assert(validator->current_token < rgs_scratch_array_count(validator->tokens));
+	aason_assert(validator->current_token < validator->tokens->count);
 
-	aason_token* token = &validator->tokens[validator->current_token++];
+	aason_token* token = &validator->tokens->tokens[validator->current_token++];
 	*out_token = token;
 
 	validator->line = token->line;
@@ -53,7 +58,7 @@ static void aason_validate_expect_token(aason_validator* validator, aason_token_
 
 	if (token_type != type)
 	{
-		aason_validate_error(ctx, aason_error_unexpected_token,
+		aason_validate_error(validator, aason_error_unexpected_token,
 			"Token '{s}' found instead of expected token '{s}'",
 			aason_token_type_strings[token_type], aason_token_type_strings[type]
 		);
@@ -105,7 +110,7 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 			++parent->count;
 			break;
 		case aason_token_type_enter_array:
-			sdd_validate_array(validator, self);
+			aason_validate_array(validator, self);
 			++parent->count;
 			break;
 		case aason_token_type_enter_object:
@@ -113,7 +118,7 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 			++parent->count;
 			break;
 		default:
-			aason_validate_error(validator, rgs_sdd_error_unexpected_token,
+			aason_validate_error(validator, aason_error_unexpected_token,
 				"Unexpected token '{s}'", aason_token_type_strings[token->type]
 			);
 		}
@@ -175,10 +180,10 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 	}
 }
 
-static bool aason_validate(aason_context* ctx, sdd_token* tokens)
+static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 {
 	aason_validator validator = {
-		.aason_context*	= ctx,
+		.ctx			= ctx,
 		.tokens			= tokens,
 		.line			= 1,
 		.column			= 1,
@@ -215,15 +220,15 @@ static bool aason_validate(aason_context* ctx, sdd_token* tokens)
 			aason_validate_object(&validator, self);
 			break;
 		default:
-			aason_validate_error(&validator, rgs_sdd_error_unexpected_token,
+			aason_validate_error(&validator, aason_error_unexpected_token,
 				"Unexpected token '{s}'", aason_token_type_strings[token->type]
 			);
 		}
 	
 		aason_validate_expect_token(&validator, aason_token_type_eof, &token);
 	
-		validator->element_count = validator.element_count + 1;
-		validator->max_stack_depth = validator.max_depth;
+		ctx->element_count = validator.element_count + 1;
+		ctx->max_stack_depth = validator.max_depth;
 	
 		aason_assert(validator.depth == 1);
 
