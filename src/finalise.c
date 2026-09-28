@@ -62,27 +62,48 @@ static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* to
 	token->end[-1] = 0;
 }
 
-static bool aason_from_string_bin(const char* str, int64_t* value)
+static bool aason_from_string_bin(const char* begin, const char* end, int64_t* value)
 {
-	//rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_bin) < 0
-	return false;
+	errno = 0;
+	char* actual_end;
+	*value = strtoll(begin, &actual_end, 2);
+	aason_assert(actual_end == end);
+
+	return errno != ERANGE;
 }
 
-static bool aason_from_string_dec(const char* str, int64_t* value)
+static bool aason_from_string_dec(const char* begin, const char* end, int64_t* value)
 {
-	//rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_dec) < 0
-	return false;
+	errno = 0;
+	char* actual_end;
+	*value = strtoll(begin, &actual_end, 10);
+	aason_assert(actual_end == end);
+
+	return errno != ERANGE;
 }
 
-static bool aason_from_string_hex(const char* str, int64_t* value)
+static bool aason_from_string_hex(const char* begin, const char* end, int64_t* value)
 {
-	//rgs_from_string_i64(token->begin, &element->int_value, rgs_int_base_hex) < 0
-	return false;
+	errno = 0;
+	char* actual_end;
+	*value = strtoll(begin, &actual_end, 16);
+	aason_assert(actual_end == end);
+
+	return errno != ERANGE;
 }
 
-static bool aason_from_string_hash(const char* str, uint32_t* value)
+static bool aason_from_string_hash(const char* begin, const char* end, uint32_t* value)
 {
-	//rgs_from_string_u32(token->begin + 1, &element->hash_value, rgs_int_base_hex);
+	int64_t result;
+	if (aason_from_string_hex(begin, end, &result))
+	{
+		if (result >= 0 && result <= UINT32_MAX)
+		{
+			*value = (uint32_t)result;
+			return true;
+		}
+	}
+
 	return false;
 }
 
@@ -90,7 +111,7 @@ static void aason_finalise_parse_bin(aason_finaliser* finaliser, aason_token* to
 {
 	element->type = aason_type_int;
 
-	if (!aason_from_string_bin(token->begin, &element->int_value))
+	if (!aason_from_string_bin(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Binary integer too large");
 }
 
@@ -98,7 +119,7 @@ static void aason_finalise_parse_dec(aason_finaliser* finaliser, aason_token* to
 {
 	element->type = aason_type_int;
 
-	if (!aason_from_string_dec(token->begin, &element->int_value))
+	if (!aason_from_string_dec(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Decimal integer too large");
 }
 
@@ -106,14 +127,14 @@ static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* to
 {
 	element->type = aason_type_int;
 
-	if (!aason_from_string_hex(token->begin, &element->int_value))
+	if (!aason_from_string_hex(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Hexadecimal integer too large");
 }
 
 static void aason_finalise_parse_hash(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_hash;
-	aason_from_string_hash(token->begin + 1, &element->hash_value);
+	aason_from_string_hash(token->begin + 1, token->end, &element->hash_value);
 }
 
 static void aason_finalise_parse_true(aason_finaliser* finaliser, aason_token* token, aason_element* element)
@@ -128,17 +149,11 @@ static void aason_finalise_parse_false(aason_finaliser* finaliser, aason_token* 
 	element->bool_value = false;
 }
 
-static bool aason_from_string_float(const char* str, float* value)
-{
-	//rgs_from_string_float(token->begin, &element->float_value) < 0
-	return false;
-}
-
 static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_float;
 
-	if (!aason_from_string_float(token->begin, &element->float_value))
+	if (!aason_from_string_float(finaliser->ctx->locale, token->begin, token->end, &element->float_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Floating point number out of range");
 }
 

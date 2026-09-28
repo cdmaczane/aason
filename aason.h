@@ -3,8 +3,6 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define AASON_WRITE_BUFFER_SIZE	(RGS_PAGE_SIZE - sizeof(aason_context))
-
 typedef struct aason_context aason_context;
 
 typedef enum

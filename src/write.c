@@ -120,6 +120,7 @@ aason_context* aason_write(const aason_write_desc* desc)
 	ctx->reading = false;
 	ctx->stack_depth = 0;
 	ctx->user_data = desc->user_data;
+	ctx->locale = aason_new_locale();
 	ctx->buffer_size = desc->buffer_size - sizeof(aason_context);
 	ctx->first = true;
 	ctx->first_line = true;
@@ -203,7 +204,7 @@ enum
 	aason_hash_len		= 9,
 	aason_int_max_len	= 20,
 	aason_bool_max_len	= 5,
-	aason_float_max_len	= 15
+	aason_float_max_len	= 16
 };
 
 char* aason_to_string_int(char* out, int64_t value)
@@ -242,15 +243,10 @@ void aason_write_array_hash(aason_context* ctx, uint32_t value)
 	aason_write_commit(ctx, out);
 }
 
-char* aason_to_string_float(char* out, float value)
-{
-	return nullptr;
-}
-
 void aason_write_array_float(aason_context* ctx, float value)
 {
 	char* out = aason_write_add_array_element(ctx, aason_float_max_len, 0);
-	out = aason_to_string_float(out, value);
+	out = aason_to_string_float(ctx->locale, out, value);
 	aason_write_commit(ctx, out);
 }
 
@@ -347,8 +343,8 @@ void aason_write_object_hash(aason_context* ctx, const char* key, uint32_t value
 
 void aason_write_object_float(aason_context* ctx, const char* key, float value)
 {
-	char* out = aason_write_add_object_element(ctx, key, aason_hash_len, 0);
-	out = aason_to_string_float(out, value);
+	char* out = aason_write_add_object_element(ctx, key, aason_float_max_len, 0);
+	out = aason_to_string_float(ctx->locale, out, value);
 	aason_write_commit(ctx, out);
 }
 

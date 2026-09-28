@@ -69,6 +69,7 @@ struct aason_context
 	bool							reading;
 	uint32_t						stack_depth;
 	void*							user_data;
+	aason_locale					locale;
 
 	union
 	{
@@ -98,4 +99,6 @@ struct aason_context
 };
 //static_assert(sizeof(aason_context) == 64);
 
+static char* aason_to_string_float(aason_locale locale, char* out, float value);
+static bool aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
 void aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args);

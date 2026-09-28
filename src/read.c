@@ -201,6 +201,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 				if (aason_finalise(ctx, desc->source, &tokens))
 				{
 					ctx->stack_depth = 0;
+					ctx->locale = aason_new_locale();
 				}
 				else
 				{
