@@ -1,18 +1,46 @@
-static char* aason_to_string_float(aason_locale locale, char* out, float value)
+static bool aason_from_string_bin(const char* begin, const char* end, int64_t* value)
 {
-#if AASON_HANDLE_LOCALE && defined(_WIN32)
-	const int result = _snprintf_s_l(out, aason_float_max_len, aason_float_max_len - 1, "%.9g", locale, value);
-#elif AASON_HANDLE_LOCALE
-	locale_t previous = uselocale(locale);
-	const int result = snprintf(out, aason_float_max_len, "%.9g", value);
-	uselocale(previous);
-#else
-	const int result = snprintf(out, aason_float_max_len, "%.9g", value);
-#endif
-	aason_assert(result >= 0);
-	aason_assert(result < aason_float_max_len);
+	errno = 0;
+	char* actual_end;
+	*value = strtoll(begin, &actual_end, 2);
+	aason_assert(actual_end == end);
 
-	return out + result;
+	return errno != ERANGE;
+}
+
+static bool aason_from_string_dec(const char* begin, const char* end, int64_t* value)
+{
+	errno = 0;
+	char* actual_end;
+	*value = strtoll(begin, &actual_end, 10);
+	aason_assert(actual_end == end);
+
+	return errno != ERANGE;
+}
+
+static bool aason_from_string_hex(const char* begin, const char* end, int64_t* value)
+{
+	errno = 0;
+	char* actual_end;
+	*value = strtoll(begin, &actual_end, 16);
+	aason_assert(actual_end == end);
+
+	return errno != ERANGE;
+}
+
+static bool aason_from_string_hash(const char* begin, const char* end, uint32_t* value)
+{
+	int64_t result;
+	if (aason_from_string_hex(begin, end, &result))
+	{
+		if (result >= 0 && result <= UINT32_MAX)
+		{
+			*value = (uint32_t)result;
+			return true;
+		}
+	}
+
+	return false;
 }
 
 static bool aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value)

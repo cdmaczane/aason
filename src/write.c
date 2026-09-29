@@ -199,19 +199,6 @@ void aason_write_array_str(aason_context* ctx, const char* value)
 	aason_write_commit(ctx, out);
 }
 
-enum
-{
-	aason_hash_len		= 9,
-	aason_int_max_len	= 20,
-	aason_bool_max_len	= 5,
-	aason_float_max_len	= 16
-};
-
-char* aason_to_string_int(char* out, int64_t value)
-{
-	return nullptr;
-}
-
 void aason_write_array_int(aason_context* ctx, int64_t value)
 {
 	char* out = aason_write_add_array_element(ctx, aason_int_max_len, 0);
@@ -219,21 +206,11 @@ void aason_write_array_int(aason_context* ctx, int64_t value)
 	aason_write_commit(ctx, out);
 }
 
-char* aason_to_string_bool(char* out, bool value)
-{
-	return nullptr;
-}
-
 void aason_write_array_bool(aason_context* ctx, bool value)
 {
 	char* out = aason_write_add_array_element(ctx, aason_bool_max_len, 0);
 	out = aason_to_string_bool(out, value);
 	aason_write_commit(ctx, out);
-}
-
-char* aason_to_string_hash(char* out, uint32_t value)
-{
-	return nullptr;
 }
 
 void aason_write_array_hash(aason_context* ctx, uint32_t value)

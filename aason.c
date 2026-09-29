@@ -13,6 +13,7 @@
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 #include "aason.h"
 
@@ -41,7 +42,7 @@
 	#define aason_strtof(str, end, locale) strtof(str, end)
 	#define aason_strtod(str, end, locale) strtod(str, end)
 #endif
-static_assert(sizeof(aason_locale) == sizeof(void*)); 
+static_assert(sizeof(aason_locale) == sizeof(void*));
 
 #include "src/internal.h"
 
@@ -55,6 +56,7 @@ static_assert(sizeof(aason_locale) == sizeof(void*));
 #include "src/finalise.c"
 #include "src/read.c"
 #include "src/write.c"
+#include "src/to_string.c"
 #include "src/from_string.c"
 
 static void aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args)

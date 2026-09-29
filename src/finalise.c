@@ -62,51 +62,6 @@ static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* to
 	token->end[-1] = 0;
 }
 
-static bool aason_from_string_bin(const char* begin, const char* end, int64_t* value)
-{
-	errno = 0;
-	char* actual_end;
-	*value = strtoll(begin, &actual_end, 2);
-	aason_assert(actual_end == end);
-
-	return errno != ERANGE;
-}
-
-static bool aason_from_string_dec(const char* begin, const char* end, int64_t* value)
-{
-	errno = 0;
-	char* actual_end;
-	*value = strtoll(begin, &actual_end, 10);
-	aason_assert(actual_end == end);
-
-	return errno != ERANGE;
-}
-
-static bool aason_from_string_hex(const char* begin, const char* end, int64_t* value)
-{
-	errno = 0;
-	char* actual_end;
-	*value = strtoll(begin, &actual_end, 16);
-	aason_assert(actual_end == end);
-
-	return errno != ERANGE;
-}
-
-static bool aason_from_string_hash(const char* begin, const char* end, uint32_t* value)
-{
-	int64_t result;
-	if (aason_from_string_hex(begin, end, &result))
-	{
-		if (result >= 0 && result <= UINT32_MAX)
-		{
-			*value = (uint32_t)result;
-			return true;
-		}
-	}
-
-	return false;
-}
-
 static void aason_finalise_parse_bin(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_int;
@@ -157,6 +112,7 @@ static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* 
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Floating point number out of range");
 }
 
+// TODO: Move
 static uint32_t aason_fnv32(const char* str, size_t size)
 {
 	uint32_t hash = 2166136261;

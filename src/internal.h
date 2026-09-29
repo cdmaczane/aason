@@ -1,3 +1,11 @@
+enum
+{
+	aason_hash_len		= 9,	// Includes null terminator
+	aason_int_max_len	= 21,	// Includes null terminator
+	aason_bool_max_len	= 5,
+	aason_float_max_len	= 16	// Includes null terminator
+};
+
 // TODO: Add flags type that separates enum values using '|'
 typedef enum
 {
@@ -99,6 +107,15 @@ struct aason_context
 };
 //static_assert(sizeof(aason_context) == 64);
 
-static char* aason_to_string_float(aason_locale locale, char* out, float value);
-static bool aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
-void aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args);
+static char*	aason_to_string_int(char* out, int64_t value);
+static char*	aason_to_string_bool(char* out, bool value);
+static char*	aason_to_string_hash(char* out, uint32_t value);
+static char*	aason_to_string_float(aason_locale locale, char* out, float value);
+
+static bool		aason_from_string_bin(const char* begin, const char* end, int64_t* value);
+static bool		aason_from_string_dec(const char* begin, const char* end, int64_t* value);
+static bool		aason_from_string_hex(const char* begin, const char* end, int64_t* value);
+static bool		aason_from_string_hash(const char* begin, const char* end, uint32_t* value);
+static bool		aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
+
+static void		aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args);
