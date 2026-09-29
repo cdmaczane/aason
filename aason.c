@@ -50,6 +50,10 @@ static_assert(sizeof(aason_locale) == sizeof(void*));
 	#define nullptr ((void*)0)
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "src/archive.c"
 #include "src/tokenise.c"
 #include "src/validate.c"
@@ -91,6 +95,10 @@ bool aason_writing(const aason_context* ctx)
 
 	return !ctx->reading;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #if !defined(__cplusplus) && __STDC_VERSION__ < 202311L
 	#undef nullptr

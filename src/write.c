@@ -59,14 +59,6 @@ static void aason_write_commit(aason_context* ctx, char* end)
 	ctx->reserved = 0;
 }
 
-//static char* aason_write_alloc(aason_context* ctx, size_t size)
-//{
-//	char* out = aason_write_reserve(ctx, size);
-//	aason_write_commit(ctx, out + size);
-
-//	return out;
-//}
-
 static char* aason_write_add_array_element(aason_context* ctx, size_t value_len, size_t extra_len)
 {
 	aason_assert(ctx);

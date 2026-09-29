@@ -1,0 +1,110 @@
+<?xml version="1.0"?>
+<N10X>
+	<Workspace>
+		<IncludeFilter>*.*,</IncludeFilter>
+		<ExcludeFilter>*.obj,*.lib,*.pch,*.dll,*.pdb,.vs,Debug,Release,x64,obj,*.user,Intermediate,.git,</ExcludeFilter>
+		<SyncFiles>true</SyncFiles>
+		<Recursive>true</Recursive>
+		<ShowEmptyFolders>true</ShowEmptyFolders>
+		<IncludeFilesWithoutExt>false</IncludeFilesWithoutExt>
+		<IsFolder>false</IsFolder>
+		<UseVisualStudioEnvBat>true</UseVisualStudioEnvBat>
+		<CaptureExeOutput>false</CaptureExeOutput>
+		<AllowAutoErrorUnderlining>true</AllowAutoErrorUnderlining>
+		<Configurations>
+			<Configuration>debug</Configuration>
+			<Configuration>release</Configuration>
+		</Configurations>
+		<Platforms>
+			<Platform>win</Platform>
+		</Platforms>
+		<AdditionalIncludePaths>
+			<AdditionalIncludePath>C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\include</AdditionalIncludePath>
+			<AdditionalIncludePath>C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\VS\include</AdditionalIncludePath>
+			<AdditionalIncludePath>C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\ucrt</AdditionalIncludePath>
+			<AdditionalIncludePath>C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\um</AdditionalIncludePath>
+			<AdditionalIncludePath>C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\shared</AdditionalIncludePath>
+			<AdditionalIncludePath>C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\winrt</AdditionalIncludePath>
+			<AdditionalIncludePath>C:\Program Files (x86)\Windows Kits\10\include\10.0.26100.0\cppwinrt</AdditionalIncludePath>
+			<AdditionalIncludePath>C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um</AdditionalIncludePath>
+		</AdditionalIncludePaths>
+		<Defines></Defines>
+		<ConfigProperties>
+			<ConfigAndPlatform>
+				<Name>Debug:x64</Name>
+				<BuildCommand>C:\dev\rgs\tools\build -$(Configuration) -$(Platform) C:\dev\rgs\ui\build\ui.build -echo</BuildCommand>
+				<RebuildCommand></RebuildCommand>
+				<BuildFileCommand></BuildFileCommand>
+				<CleanCommand></CleanCommand>
+				<BuildWorkingDirectory></BuildWorkingDirectory>
+				<FileSyntaxCheckCommand></FileSyntaxCheckCommand>
+				<CancelBuild></CancelBuild>
+				<Exe></Exe>
+				<Args></Args>
+				<WorkingDirectory>$(WorkspaceDirectory)</WorkingDirectory>
+				<DebugCommand>$(Executable)</DebugCommand>
+				<DebuggerExe></DebuggerExe>
+				<DebugSln></DebugSln>
+				<Defines></Defines>
+				<ForceIncludes></ForceIncludes>
+				<PrioritiseFiles></PrioritiseFiles>
+			</ConfigAndPlatform>
+			<ConfigAndPlatform>
+				<Name>debug:win</Name>
+				<BuildCommand>C:\dev\rgs\tools\build -$(Configuration) -$(Platform) C:\dev\rgs\ui\build\ui.build -echo</BuildCommand>
+				<RebuildCommand></RebuildCommand>
+				<BuildFileCommand></BuildFileCommand>
+				<CleanCommand></CleanCommand>
+				<BuildWorkingDirectory></BuildWorkingDirectory>
+				<FileSyntaxCheckCommand></FileSyntaxCheckCommand>
+				<CancelBuild></CancelBuild>
+				<Exe></Exe>
+				<Args></Args>
+				<WorkingDirectory>$(WorkspaceDirectory)</WorkingDirectory>
+				<DebugCommand>$(Executable)</DebugCommand>
+				<DebuggerExe></DebuggerExe>
+				<DebugSln></DebugSln>
+				<Defines></Defines>
+				<ForceIncludes></ForceIncludes>
+				<PrioritiseFiles></PrioritiseFiles>
+			</ConfigAndPlatform>
+			<ConfigAndPlatform>
+				<Name>debug:x64</Name>
+				<BuildCommand>C:\dev\rgs\tools\build -$(Configuration) -$(Platform) C:\dev\rgs\ui\build\ui.build -echo</BuildCommand>
+				<RebuildCommand></RebuildCommand>
+				<BuildFileCommand></BuildFileCommand>
+				<CleanCommand></CleanCommand>
+				<BuildWorkingDirectory></BuildWorkingDirectory>
+				<FileSyntaxCheckCommand></FileSyntaxCheckCommand>
+				<CancelBuild></CancelBuild>
+				<Exe></Exe>
+				<Args></Args>
+				<WorkingDirectory>$(WorkspaceDirectory)</WorkingDirectory>
+				<DebugCommand>$(Executable)</DebugCommand>
+				<DebuggerExe></DebuggerExe>
+				<DebugSln></DebugSln>
+				<Defines></Defines>
+				<ForceIncludes></ForceIncludes>
+				<PrioritiseFiles></PrioritiseFiles>
+			</ConfigAndPlatform>
+			<Config>
+				<Name>Debug</Name>
+				<Defines></Defines>
+			</Config>
+			<Config>
+				<Name>debug</Name>
+				<Defines></Defines>
+			</Config>
+			<Platform>
+				<Name>win</Name>
+				<Defines></Defines>
+			</Platform>
+			<Platform>
+				<Name>x64</Name>
+				<Defines></Defines>
+			</Platform>
+		</ConfigProperties>
+		<TerminalDirectory>$(WorkspaceDirectory)</TerminalDirectory>
+		<Children></Children>
+	</Workspace>
+</N10X>

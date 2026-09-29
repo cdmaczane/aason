@@ -3,6 +3,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct aason_context aason_context;
 
 typedef enum
@@ -138,3 +142,7 @@ bool aason_archive_object_bool(aason_context* ctx, const char* key, bool* value,
 bool aason_archive_object_hash(aason_context* ctx, const char* key, uint32_t* value, uint32_t default_value);
 bool aason_archive_object_float(aason_context* ctx, const char* key, float* value, float default_value);
 bool aason_archive_object_enum(aason_context* ctx, const char* key, int32_t* value, int32_t default_value, const char** strings, int32_t count);
+
+#ifdef __cplusplus
+}
+#endif
