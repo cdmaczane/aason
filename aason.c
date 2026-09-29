@@ -15,14 +15,17 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+// TODO: Move into `#if AASON_HANDLE_LOCALE` scope once custom parsers are added
+#if defined(_WIN32)
+	#include <stdio.h>
+#endif
+
 #include "aason.h"
 
 #if AASON_HANDLE_LOCALE
 	#include <locale.h>
 
 	#if defined(_WIN32)
-		#include <stdio.h>
-
 		typedef _locale_t aason_locale;
 		#define aason_new_locale() _create_locale(LC_NUMERIC, "C")
 		#define aason_free_locale(locale) _free_locale(locale)
