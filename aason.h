@@ -66,6 +66,7 @@ typedef struct
 	aason_format			format_string;
 } aason_read_desc;
 
+// TODO: Look into allocations
 typedef struct
 {
 	void*					buffer;
@@ -73,6 +74,40 @@ typedef struct
 	aason_write_callback	callback;
 	void*					user_data;
 } aason_write_desc;
+
+typedef enum
+{
+	aason_arg_type_str,
+	aason_arg_type_int,
+	aason_arg_type_bool,
+	aason_arg_type_enum,
+	aason_arg_type_float
+} aason_arg_type;
+
+typedef struct
+{
+	aason_arg_type	type;
+	union
+	{
+		const char*	str_value;
+		int64_t		int_value;
+		bool		bool_value;
+		const char*	enum_value;
+		float		float_value;
+	};
+} aason_arg;
+
+typedef bool (*aason_macro_callback)(aason_context* ctx, void* user_data, size_t argc, const aason_arg* argv, void* result);
+
+typedef struct
+{
+	const char*				name;
+	const aason_arg_type*	args;
+	size_t					count;
+	aason_macro_callback	callback;
+} aason_macro_desc;
+
+void aason_register_macro(aason_context* ctx, const aason_macro_desc* macro);
 
 aason_context* aason_read(const aason_read_desc* desc);
 aason_context* aason_write(const aason_write_desc* desc);
