@@ -363,7 +363,7 @@ bool aason_read_array_int(aason_context* ctx, int64_t* value)
 	return false;
 }
 
-bool aaron_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min, int64_t max)
+bool aason_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min, int64_t max)
 {
 	aason_assert(value);
 
