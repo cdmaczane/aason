@@ -8,7 +8,7 @@ typedef struct
 	jmp_buf			jmp_ctx;
 } aason_finaliser;
 
-static void aason_finalise_error(aason_finaliser* finaliser, aason_error error, const char* fmt, ...)
+static void aason_finalise_error(aason_finaliser* finaliser, aason_error_type error, const char* fmt, ...)
 {
 	char buffer[4096];
 

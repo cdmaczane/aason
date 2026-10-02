@@ -125,7 +125,7 @@ static bool aason_tokenise_is_valid_identifier_char(char c)
 	return false;
 }
 
-static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error error, const char* fmt, ...)
+static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type error, const char* fmt, ...)
 {
 	char buffer[4096];
 

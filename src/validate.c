@@ -11,7 +11,7 @@ typedef struct
 	jmp_buf			jmp_ctx;
 } aason_validator;
 
-static void aason_validate_error(aason_validator* validator, aason_error error, const char* fmt, ...)
+static void aason_validate_error(aason_validator* validator, aason_error_type error, const char* fmt, ...)
 {
 	char buffer[4096];
 

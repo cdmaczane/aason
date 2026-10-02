@@ -8,6 +8,10 @@ extern "C" {
 #endif
 
 typedef struct aason_context aason_context;
+//typedef struct aason_reader aason_reader;
+//typedef struct aason_writer aason_writer;
+//typedef struct aason_archiver aason_archiver;
+//typedef struct aason_error_context aason_error_context;
 
 typedef enum
 {
@@ -45,35 +49,88 @@ typedef enum
 	aason_error_invalid_enum,
 	aason_error_key_not_found,
 	aason_error_buffer_too_small
-} aason_error;
+} aason_error_type;
 
-typedef void* (*aason_allocator)(void* user_data, void* ptr, size_t old_size, size_t new_size);
-typedef void (*aason_format)(char* out, size_t size, const char* format, va_list args);
-typedef void (*aason_error_callback)(void* user_data, aason_error error, uint32_t line, uint32_t column, const char* str);
-typedef void (*aason_write_callback)(void* user_data, const char* str, int64_t size);
+//typedef bool (*aason_read_callback)(void* user_data, const char* path, void** data, size_t size);
+//typedef void* (*aason_allocator)(void* user_data, void* ptr, size_t old_size, size_t new_size);
+//typedef void (*aason_format)(char* out, size_t size, const char* format, va_list args);
+//typedef void (*aason_error_callback)(void* user_data, aason_error_type error, uint32_t line, uint32_t column, const char* str);
+//typedef void (*aason_write_callback)(void* user_data, void* stream, const char* str, int64_t size);
+
+//typedef enum
+//{
+//	aason_open_mode_read,
+//	aason_open_mode_write
+//} aason_open_mode;
+
+void aason_error(aason_context* ctx, aason_error_type type, const char* format, ...);
 
 typedef struct
 {
-	char*					source;
-	size_t					length;
-	uint32_t				tab_size;
-	aason_error_callback	error_callback;
-	void*					error_data;
-	aason_allocator			allocator;
-	void*					allocator_data;
-	aason_allocator			scratch;
-	void*					scratch_data;
-	aason_format			format_string;
-} aason_read_desc;
+	void*	state;
+	void	(*error)(void* state, aason_error_type error, uint32_t line, uint32_t column, const char* str);
+} aason_error_interface;
 
-// TODO: Look into allocations
+//typedef struct
+//{
+//	void*	data;
+//	void*	(*open)(void* data, const char* path, aason_open_mode mode);
+//	void	(*close)(void* data, void* handle);
+//	size_t	(*size)(void* data, void* handle);
+//	bool	(*read)(void* data, void* handle, void* buffer, size_t offset, size_t size);
+//	bool	(*write)(void* data, void* handle, const void* buffer, size_t size);
+//} aason_file_interface;
+
 typedef struct
 {
-	void*					buffer;
-	size_t					buffer_size;
-	aason_write_callback	callback;
-	void*					user_data;
-} aason_write_desc;
+	void*	self;
+	void*	(*open)(void* self, const char* path, size_t* size);
+	bool	(*read)(void* self, void* stream, void* buffer, size_t offset, size_t size);
+	void	(*close)(void* self, void* stream);
+} aason_read_interface;
+
+typedef struct
+{
+	void*	self;
+	void*	(*open)(void* self, const char* path);
+	bool	(*write)(void* self, void* stream, const void* buffer, size_t size);
+	void	(*close)(void* self, void* stream);
+} aason_write_interface;
+
+typedef struct
+{
+	void*	self;
+	void*	(*alloc)(void* self, size_t size, size_t align, const char* function, const char* file, int line);
+	void*	(*realloc)(void* self, void* ptr, size_t size, size_t align, const char* function, const char* file, int line);
+	void	(*free)(void* self, void* ptr, const char* function, const char* file, int line);
+	void*	(*push)(void* self);
+	void	(*pop)(void* self, void* frame);
+} aason_allocator;
+
+//typedef struct
+//{
+//	aason_allocator* persistent;
+//	aason_allocator* scratch;
+//	aason_allocator* parse;
+//	aason_allocator* write;
+//	aason_allocator* value;
+//} aason_memory_interface;
+
+// Internal
+#define aason_persistent_alloc(ctx, size)
+#define aason_persistent_free(ctx, ptr)
+#define aason_parse_alloc(ctx, size)
+#define aason_parse_free(ctx, ptr)
+#define aason_write_alloc(ctx, size)
+#define aason_write_free(ctx, ptr)
+#define aason_scratch_push(ctx)
+#define aason_scratch_pop(ctx, frame)
+#define aason_scratch_realloc(ctx, ptr, size)
+#define aason_scratch_free(ctx, ptr)
+
+// External
+#define aason_value_alloc(ctx, size, align)
+#define aason_value_free(ctx, ptr)
 
 typedef enum
 {
@@ -97,21 +154,95 @@ typedef struct
 	};
 } aason_arg;
 
-typedef bool (*aason_macro_callback)(aason_context* ctx, void* user_data, size_t argc, const aason_arg* argv, void* result);
+//typedef void (*aason_read_macro_callback)(aason_context* ctx, size_t argc, const aason_arg* argv, void* value);
+//typedef void (*aason_write_macro_callback)(aason_context* ctx, void* value);
+
+typedef void (*aason_format_callback)(char* out, size_t size, const char* format, va_list args);
 
 typedef struct
 {
 	const char*				name;
 	const aason_arg_type*	args;
 	size_t					count;
-	aason_macro_callback	callback;
+	void					(*read)(aason_context* ctx, void* value, const aason_arg* args, size_t count);
+	void					(*write)(aason_context* ctx, void* value);
 } aason_macro_desc;
 
-void aason_register_macro(aason_context* ctx, const aason_macro_desc* macro);
+//typedef struct
+//{
+//	uint32_t						tab_size;
+//	const aason_read_interface*		read;
+//	const aason_write_interface*	write;
+//	const aason_memory_interface*	memory;
+//	const aason_error_interface*	error;
+//	aason_format_callback			format;
+//	const aason_macro_desc*			macros;
+//	size_t							macro_count;
+//} aason_context_desc;
+
+typedef struct
+{
+	const char*						path;
+	uint32_t						tab_size;
+	aason_format_callback			format;
+	const aason_error_interface*	error_interface;
+	const aason_read_interface*		read_interface;
+	const aason_allocator*			context_allocator;
+	const aason_allocator*			parse_allocator;
+	const aason_allocator*			value_allocator;
+	const aason_allocator*			scratch_allocator;
+	const aason_macro_desc*			macros;
+	size_t							macro_count;
+} aason_read_desc;
+
+typedef struct
+{
+	const char*						path;
+	uint32_t						tab_size;
+	size_t							buffer_size;
+	aason_format_callback			format;
+	const aason_error_interface*	error_interface;
+	const aason_allocator*			context_allocator;
+	const aason_write_interface*	write_interface;
+	const aason_allocator*			buffer_allocator;
+	const aason_macro_desc*			macros;
+	size_t							macro_count;
+} aason_write_desc;
+
+//typedef struct
+//{
+//	char*					source;
+//	size_t					length;
+//	uint32_t				tab_size;
+//	aason_error_callback	error_callback;
+//	void*					error_data;
+//	aason_allocator			allocator;
+//	void*					allocator_data;
+//	aason_allocator			scratch;
+//	void*					scratch_data;
+//	aason_format			format_string;
+//} aason_read_desc;
+
+// TODO: Look into allocations
+//typedef struct
+//{
+//	void*					buffer;
+//	size_t					buffer_size;
+//	aason_write_callback	callback;
+//	void*					user_data;
+//} aason_write_desc;
+
+//aason_context*	aason_create(const aason_context_desc* desc);
+//void			aason_destroy(aason_context* ctx);
+
+//aason_reader*	aason_open_read(const aason_context_desc* desc, const char* path, void* user_data);
+//void			aason_close_read(aason_reader* reader);
+
+//aason_writer*	aason_open_write(const aason_context_desc* desc, const char* path, void* user_data);
+//void			aason_close_write(aason_writer* writer);
 
 aason_context* aason_read(const aason_read_desc* desc);
 aason_context* aason_write(const aason_write_desc* desc);
-void aason_destroy(aason_context* ctx);
 bool aason_reading(const aason_context* ctx);
 bool aason_writing(const aason_context* ctx);
 

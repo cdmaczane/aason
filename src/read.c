@@ -10,7 +10,7 @@ static const char* aason_type_strings[] = {
 	"object"
 };
 
-static void aason_read_error(aason_context* ctx, aason_error error, uint32_t line, uint32_t column, const char* fmt, ...)
+static void aason_read_error(aason_context* ctx, aason_error_type error, uint32_t line, uint32_t column, const char* fmt, ...)
 {
 	char buffer[4096];
 
