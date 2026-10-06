@@ -2,6 +2,7 @@ typedef struct
 {
 	aason_context*	ctx;
 	aason_tokens*	tokens;
+	const char*		file;
 	uint32_t		line;
 	uint32_t		column;
 	uint32_t		current_token;
@@ -16,18 +17,19 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 	char buffer[4096];
 
 	validator->ctx->error = error;
+	validator->ctx->error_file = validator->file;
 	validator->ctx->error_line = validator->line;
 	validator->ctx->error_column = validator->column;
 
-	if (validator->ctx->read_desc->error_callback)
+	if (validator->ctx->error_interface.error)
 	{
 		va_list args;
 		va_start(args, fmt);
 		aason_format_string(validator->ctx, buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
-		validator->ctx->read_desc->error_callback(
-			validator->ctx->user_data,
+		validator->ctx->error_interface.error(
+			validator->ctx->error_interface.state,
 			error,
 			validator->line,
 			validator->column,

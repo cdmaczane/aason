@@ -1,3 +1,7 @@
+#define aason_alloc(allocator, size)		(allocator)->alloc((allocator)->self, (size), sizeof(void*), __func__, __FILE__, __LINE__)
+#define aason_free(allocator, ptr)			(allocator)->free((allocator)->self, (ptr), __func__, __FILE__, __LINE__)
+#define aason_realloc(allocator, ptr, size)	(allocator)->realloc((allocator)->self, (ptr), (size), sizeof(void*), __func__, __FILE__, __LINE__)
+
 enum
 {
 	aason_hash_len		= 9,	// Includes null terminator
@@ -72,36 +76,42 @@ typedef struct
 // TODO: Consider renaming elements within objects to "fields".
 struct aason_context
 {
-	char*							buffer;
-	uint16_t						error;
+	const char*						path;
+	aason_error_type				error;
+	uint32_t						tab_size;
 	bool							reading;
 	uint32_t						stack_depth;
-	void*							user_data;
 	aason_locale					locale;
+	aason_format_callback			format;
+	aason_error_interface			error_interface;
+	aason_allocator					allocator;
 
 	union
 	{
 		// TODO: C++ doesn't support anonymous structs
 		struct
 		{
-			const aason_read_desc*	read_desc;
 			aason_stack_entry*		stack;
 			aason_element*			elements;
 			uint32_t				element_count;
 			uint32_t				max_stack_depth;
+			const char*				error_file;
 			uint32_t				error_line;
 			uint32_t				error_column;
-			//aason_error_callback	error_callback;
+			uint32_t				file_count;
+			char**					files;
 		};
 
 		struct
 		{
+			char*					buffer;
 			size_t					buffer_size;
 			bool					first;
 			bool					first_line;
 			size_t					reserved;
-			size_t					offset; // TODO: Rename to committed
-			aason_write_callback	write_str;
+			size_t					committed;
+			void*					stream;
+			aason_write_interface	write_interface; // TODO: We only need the write function and state pointer
 		};
 	};
 };

@@ -68,8 +68,8 @@ extern "C" {
 
 static void aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args)
 {
-	if (ctx->read_desc->format_string)
-		ctx->read_desc->format_string(out, size, format, args);
+	if (ctx->format)
+		ctx->format(out, size, format, args);
 }
 
 void aason_destroy(aason_context* ctx)
@@ -79,9 +79,17 @@ void aason_destroy(aason_context* ctx)
 		aason_free_locale(ctx->locale);
 
 		if (ctx->reading)
-			ctx->read_desc->allocator(ctx->read_desc->allocator_data, ctx, 0, 0);
+		{
+			for (uint32_t i = 0; i < ctx->file_count; ++i)
+				aason_free(&ctx->allocator, ctx->files[i]);
+		}
 		else
+		{
 			aason_write_flush(ctx);
+			aason_free(&ctx->allocator, ctx->buffer);
+		}
+
+		aason_free(&ctx->allocator, ctx);
 	}
 }
 

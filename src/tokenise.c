@@ -55,6 +55,7 @@ typedef struct
 	uint32_t			count;
 	char*				begin;
 	char*				end;
+	//const char*			file; // TODO
 	uint32_t			line;
 	uint32_t			column;
 } aason_token;
@@ -69,6 +70,7 @@ typedef struct
 	char*			end;
 	char*			current;
 	char*			next;
+	const char*		file;
 	uint32_t		line;
 	uint32_t		column;
 	uint32_t		next_line;
@@ -130,18 +132,19 @@ static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type er
 	char buffer[4096];
 
 	tokeniser->ctx->error = error;
+	tokeniser->ctx->error_file = tokeniser->file;
 	tokeniser->ctx->error_line = tokeniser->line;
 	tokeniser->ctx->error_column = tokeniser->column;
 
-	if (tokeniser->ctx->read_desc->error_callback)
+	if (tokeniser->ctx->error_interface.error)
 	{
 		va_list args;
 		va_start(args, fmt);
 		aason_format_string(tokeniser->ctx, buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
-		tokeniser->ctx->read_desc->error_callback(
-			tokeniser->ctx->user_data,
+		tokeniser->ctx->error_interface.error(
+			tokeniser->ctx->error_interface.state,
 			error,
 			tokeniser->line,
 			tokeniser->column,
@@ -473,7 +476,7 @@ typedef struct
 	uint32_t		capacity;
 } aason_tokens;
 
-static aason_token* aason_allocate_token(aason_context* ctx, aason_tokens* tokens)
+static aason_token* aason_allocate_token(aason_allocator* scratch, aason_tokens* tokens)
 {
 	if (tokens->count == tokens->capacity)
 	{
@@ -482,18 +485,13 @@ static aason_token* aason_allocate_token(aason_context* ctx, aason_tokens* token
 		else
 			tokens->capacity = 64;
 
-		tokens->tokens = ctx->read_desc->scratch(
-			ctx->read_desc->scratch_data,
-			tokens->tokens,
-			sizeof(aason_token) * tokens->count,
-			sizeof(aason_token) * tokens->capacity
-		);
+		tokens->tokens = aason_realloc(scratch, tokens->tokens, sizeof(aason_token) * tokens->capacity);
 	}
 
 	return &tokens->tokens[tokens->count++];
 }
 
-static aason_tokens aason_tokenise(aason_context* ctx, char* buffer, int64_t size, uint32_t tab_size)
+static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch, char* buffer, int64_t size, uint32_t tab_size)
 {
 	aason_tokeniser tokeniser = {
 		.ctx			= ctx,
@@ -517,7 +515,7 @@ static aason_tokens aason_tokenise(aason_context* ctx, char* buffer, int64_t siz
 		if (c == '/')
 			c = aason_tokenise_skip_comments(&tokeniser);
 
-		aason_token* token = aason_allocate_token(ctx, &tokens);
+		aason_token* token = aason_allocate_token(scratch, &tokens);
 		token->count = 0;
 		token->begin = tokeniser.current;
 		token->line = tokeniser.line;

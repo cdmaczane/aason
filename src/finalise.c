@@ -16,15 +16,15 @@ static void aason_finalise_error(aason_finaliser* finaliser, aason_error_type er
 	finaliser->ctx->error_line = finaliser->tokens->tokens[finaliser->token_index].line;
 	finaliser->ctx->error_column = finaliser->tokens->tokens[finaliser->token_index].column;
 
-	if (finaliser->ctx->read_desc->error_callback)
+	if (finaliser->ctx->error_interface.error)
 	{
 		va_list args;
 		va_start(args, fmt);
 		aason_format_string(finaliser->ctx, buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
-		finaliser->ctx->read_desc->error_callback(
-			finaliser->ctx->user_data,
+		finaliser->ctx->error_interface.error(
+			finaliser->ctx->error_interface.state,
 			error,
 			finaliser->ctx->error_line,
 			finaliser->ctx->error_column,

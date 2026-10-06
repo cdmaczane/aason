@@ -23,17 +23,19 @@ static char* aason_write_new_line(aason_context* ctx, char* out)
 
 static void aason_write_flush(aason_context* ctx)
 {
-	if (ctx->offset)
+	if (ctx->committed)
 	{
-		ctx->write_str(ctx->user_data, ctx->buffer, ctx->offset);
-		ctx->offset = 0;
+		ctx->write_interface.write(ctx->write_interface.self, ctx->stream, ctx->buffer, ctx->committed);
+		//ctx->write_str(ctx->user_data, ctx->buffer, ctx->offset);
+		ctx->committed = 0;
 	}
 }
 
-static void aason_write_str(aason_context* ctx, const char* str, size_t size)
+static void aason_write_str(aason_context* ctx, const char* str, size_t length)
 {
 	aason_write_flush(ctx);
-	ctx->write_str(ctx->user_data, str, size);
+	ctx->write_interface.write(ctx->write_interface.self, ctx->stream, str, length);
+	//ctx->write_str(ctx->user_data, str, size);
 }
 
 static char* aason_write_reserve(aason_context* ctx, size_t size)
@@ -41,11 +43,11 @@ static char* aason_write_reserve(aason_context* ctx, size_t size)
 	aason_assert(ctx->reserved == 0);
 	aason_assert(size <= ctx->buffer_size);
 
-	if (ctx->offset + size > ctx->buffer_size)
+	if (ctx->committed + size > ctx->buffer_size)
 		aason_write_flush(ctx);
 
-	char* out = ctx->buffer + ctx->offset;
-	ctx->reserved = ctx->offset + size;
+	char* out = ctx->buffer + ctx->committed;
+	ctx->reserved = ctx->committed + size;
 
 	return out;
 }
@@ -55,7 +57,7 @@ static void aason_write_commit(aason_context* ctx, char* end)
 	aason_assert(end >= ctx->buffer);
 	aason_assert(end <= ctx->buffer + ctx->reserved);
 
-	ctx->offset = end - ctx->buffer;
+	ctx->committed = end - ctx->buffer;
 	ctx->reserved = 0;
 }
 
@@ -98,26 +100,32 @@ static char* aason_write_add_object_element(aason_context* ctx, const char* key,
 aason_context* aason_write(const aason_write_desc* desc)
 {
 	aason_assert(desc);
-	aason_assert(desc->buffer);
+	//aason_assert(desc->buffer);
 	aason_assert(desc->buffer_size >= 4096); // Somewhat arbitrary
-	aason_assert(desc->callback);
+	//aason_assert(desc->callback);
 
-	uint8_t* buffer = (uint8_t*)desc->buffer;
+	aason_allocator allocator = *desc->allocator;
+	aason_write_interface write_interface = *desc->write_interface;
 
-	aason_context* ctx = (aason_context*)buffer;
-	buffer += sizeof(aason_context);
+	//uint8_t* buffer = (uint8_t*)desc->buffer;
+	//uint8_t* buffer = aason_alloc(&allocator, 4096); // TODO: Make configurable
 
-	ctx->buffer = (char*)buffer;
+	//aason_context* ctx = (aason_context*)buffer;
+	//buffer += sizeof(aason_context);
+
+	aason_context* ctx = (aason_context*)aason_alloc(&allocator, sizeof(aason_context));
 	ctx->error = aason_error_none;
 	ctx->reading = false;
 	ctx->stack_depth = 0;
-	ctx->user_data = desc->user_data;
 	ctx->locale = aason_new_locale();
-	ctx->buffer_size = desc->buffer_size - sizeof(aason_context);
+	ctx->buffer = (char*)aason_alloc(&allocator, desc->buffer_size);
+	ctx->buffer_size = desc->buffer_size;
 	ctx->first = true;
 	ctx->first_line = true;
-	ctx->offset = 0;
-	ctx->write_str = desc->callback;
+	ctx->reserved = 0;
+	ctx->committed = 0;
+	// TODO: Stream
+	//ctx->write_interface = write_interface;
 
 	return ctx;
 }

@@ -85,7 +85,7 @@ typedef struct
 {
 	void*	self;
 	void*	(*open)(void* self, const char* path, size_t* size);
-	bool	(*read)(void* self, void* stream, void* buffer, size_t offset, size_t size);
+	void	(*read)(void* self, void* stream, void* buffer, size_t offset, size_t size);
 	void	(*close)(void* self, void* stream);
 } aason_read_interface;
 
@@ -93,7 +93,7 @@ typedef struct
 {
 	void*	self;
 	void*	(*open)(void* self, const char* path);
-	bool	(*write)(void* self, void* stream, const void* buffer, size_t size);
+	void	(*write)(void* self, void* stream, const void* buffer, size_t size);
 	void	(*close)(void* self, void* stream);
 } aason_write_interface;
 
@@ -117,20 +117,20 @@ typedef struct
 //} aason_memory_interface;
 
 // Internal
-#define aason_persistent_alloc(ctx, size)
-#define aason_persistent_free(ctx, ptr)
-#define aason_parse_alloc(ctx, size)
-#define aason_parse_free(ctx, ptr)
-#define aason_write_alloc(ctx, size)
-#define aason_write_free(ctx, ptr)
-#define aason_scratch_push(ctx)
-#define aason_scratch_pop(ctx, frame)
-#define aason_scratch_realloc(ctx, ptr, size)
-#define aason_scratch_free(ctx, ptr)
+//#define aason_persistent_alloc(ctx, size)
+//#define aason_persistent_free(ctx, ptr)
+//#define aason_parse_alloc(ctx, size)
+//#define aason_parse_free(ctx, ptr)
+//#define aason_write_alloc(ctx, size)
+//#define aason_write_free(ctx, ptr)
+//#define aason_scratch_push(ctx)
+//#define aason_scratch_pop(ctx, frame)
+//#define aason_scratch_realloc(ctx, ptr, size)
+//#define aason_scratch_free(ctx, ptr)
 
 // External
-#define aason_value_alloc(ctx, size, align)
-#define aason_value_free(ctx, ptr)
+//#define aason_value_alloc(ctx, size, align)
+//#define aason_value_free(ctx, ptr)
 
 typedef enum
 {
@@ -187,8 +187,7 @@ typedef struct
 	aason_format_callback			format;
 	const aason_error_interface*	error_interface;
 	const aason_read_interface*		read_interface;
-	const aason_allocator*			context_allocator;
-	const aason_allocator*			parse_allocator;
+	const aason_allocator*			allocator;
 	const aason_allocator*			value_allocator;
 	const aason_allocator*			scratch_allocator;
 	const aason_macro_desc*			macros;
@@ -202,9 +201,8 @@ typedef struct
 	size_t							buffer_size;
 	aason_format_callback			format;
 	const aason_error_interface*	error_interface;
-	const aason_allocator*			context_allocator;
 	const aason_write_interface*	write_interface;
-	const aason_allocator*			buffer_allocator;
+	const aason_allocator*			allocator;
 	const aason_macro_desc*			macros;
 	size_t							macro_count;
 } aason_write_desc;
@@ -243,6 +241,7 @@ typedef struct
 
 aason_context* aason_read(const aason_read_desc* desc);
 aason_context* aason_write(const aason_write_desc* desc);
+void aason_destroy(aason_context* ctx);
 bool aason_reading(const aason_context* ctx);
 bool aason_writing(const aason_context* ctx);
 
