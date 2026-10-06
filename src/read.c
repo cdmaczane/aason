@@ -159,14 +159,34 @@ static size_t aason_align_size(size_t size)
 
 static char* aason_load_stream(aason_allocator* allocator, aason_read_interface* read_interface, const char* path, size_t* size)
 {
+	char* data = nullptr;
+
 	void* stream = read_interface->open(read_interface->self, path, size);
-	aason_assert(stream); // TODO: Report error
+	if (stream)
+	{
+		if (*size)
+		{
+			data = aason_alloc(allocator, *size);
+			if (data)
+			{
+				read_interface->read(read_interface->self, stream, data, 0, *size);
+			}
+			else
+			{
+				// TODO: Report error
+			}
+		}
+		else
+		{
+			// TODO: Report error
+		}
 
-	char* data = aason_alloc(allocator, *size);
-	aason_assert(data); // TODO: Close stream and report error
-
-	read_interface->read(read_interface->self, stream, data, 0, *size);
-	read_interface->close(read_interface->self, stream);
+		read_interface->close(read_interface->self, stream);
+	}
+	else
+	{
+		// TODO: Report error
+	}
 
 	return data;
 }
