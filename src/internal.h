@@ -76,7 +76,7 @@ typedef struct
 // TODO: Consider renaming elements within objects to "fields".
 struct aason_context
 {
-	const char*						path;
+	//const char*						path;
 	aason_error_type				error;
 	uint32_t						tab_size;
 	bool							reading;

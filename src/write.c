@@ -100,34 +100,50 @@ static char* aason_write_add_object_element(aason_context* ctx, const char* key,
 aason_context* aason_write(const aason_write_desc* desc)
 {
 	aason_assert(desc);
-	//aason_assert(desc->buffer);
 	aason_assert(desc->buffer_size >= 4096); // Somewhat arbitrary
-	//aason_assert(desc->callback);
+
+	// Use 4-space tabs by default
+	const uint32_t tab_size = desc->tab_size ? desc->tab_size : 4;
 
 	aason_allocator allocator = *desc->allocator;
 	aason_write_interface write_interface = *desc->write_interface;
 
-	//uint8_t* buffer = (uint8_t*)desc->buffer;
-	//uint8_t* buffer = aason_alloc(&allocator, 4096); // TODO: Make configurable
+	void* stream = write_interface.open(write_interface.self, desc->path);
+	if (stream)
+	{
+		char* buffer = aason_alloc(&allocator, desc->buffer_size);
+		if (buffer)
+		{
+			aason_context* ctx = (aason_context*)aason_alloc(&allocator, sizeof(aason_context));
+			*ctx = (aason_context){
+				.error				= aason_error_none,
+				.tab_size			= tab_size,
+				.reading			= false,
+				.locale				= aason_new_locale(),
+				.allocator			= allocator,
+				.buffer				= buffer,
+				.buffer_size		= desc->buffer_size,
+				.first				= true,
+				.first_line			= true,
+				.reserved			= 0,
+				.committed			= 0,
+				.stream				= stream,
+				.write_interface	= write_interface
+			};
 
-	//aason_context* ctx = (aason_context*)buffer;
-	//buffer += sizeof(aason_context);
+			return ctx;
+		}
+		else
+		{
+			write_interface.close(write_interface.self, stream);
+		}
+	}
+	else
+	{
+		// TODO: Report error
+	}
 
-	aason_context* ctx = (aason_context*)aason_alloc(&allocator, sizeof(aason_context));
-	ctx->error = aason_error_none;
-	ctx->reading = false;
-	ctx->stack_depth = 0;
-	ctx->locale = aason_new_locale();
-	ctx->buffer = (char*)aason_alloc(&allocator, desc->buffer_size);
-	ctx->buffer_size = desc->buffer_size;
-	ctx->first = true;
-	ctx->first_line = true;
-	ctx->reserved = 0;
-	ctx->committed = 0;
-	// TODO: Stream
-	//ctx->write_interface = write_interface;
-
-	return ctx;
+	return nullptr;
 }
 
 void aason_write_array_enter(aason_context* ctx, const char* key)
