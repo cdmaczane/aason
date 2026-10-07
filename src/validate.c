@@ -90,18 +90,21 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 	const size_t len = self->end - self->begin;
 	name[len] = 0; // Null terminate
 
+	uint32_t index = 0;
 	const aason_constructor_desc* constructor = nullptr;
-	for (uint32_t i = 0; i < validator->ctx->constructor_count; ++i)
+	for (index = 0; index < validator->ctx->constructor_count; ++index)
 	{
-		if (strcmp(name, validator->ctx->constructors[i]->name) == 0)
+		if (strcmp(name, validator->ctx->constructors[index]->name) == 0)
 		{
-			constructor = validator->ctx->constructors[i];
+			constructor = validator->ctx->constructors[index];
 			break;
 		}
 	}
 
 	// TODO: Raise error
 	aason_assert(constructor);
+
+	parent->constructor_index = index;
 
 	aason_validate_expect_token(validator, aason_token_type_open_paren, &token);
 

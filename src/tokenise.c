@@ -57,7 +57,8 @@ enum
 
 typedef struct
 {
-	aason_token_type	type;
+	uint16_t			type;
+	uint16_t			constructor_index;
 	uint32_t			count;
 	char*				begin;
 	char*				end;

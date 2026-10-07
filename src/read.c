@@ -257,7 +257,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 			const size_t element_size	= aason_align_size(sizeof(aason_element) * temp_ctx.element_count);
 			const size_t stack_size		= aason_align_size(sizeof(aason_stack_entry) * temp_ctx.max_stack_depth);
 			const size_t file_size		= aason_align_size(sizeof(const char*) * file_count);
-			const size_t packed_size	= context_size + element_size + stack_size;
+			const size_t packed_size	= context_size + element_size + stack_size + file_size;
 
 			// Allocate all parsing memory in one go
 			//uint8_t* alloc = (uint8_t*)desc->allocator(desc->allocator_data, nullptr, 0, packed_size);
@@ -749,6 +749,59 @@ bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags fla
 		aason_read_error(ctx, aason_error_invalid_enum, element->line, element->column,
 			"Invalid enum value '{s}' found in element '{s}'", enum_value, key
 		);
+	}
+
+	return false;
+}
+
+bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_flags flags, void* value, const char* type)
+{
+	aason_assert(value);
+	aason_assert(type);
+
+	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_constructor);
+	if (element)
+	{
+		aason_assert(element->constructor_index < ctx->constructor_count);
+
+		const aason_constructor_desc* constructor = ctx->constructors[element->constructor_index];
+		aason_assert(strcmp(type, constructor->name) == 0);
+
+		const char* buffer = aason_read_get_buffer(ctx);
+
+		// TODO: Get rid of allocation
+		aason_arg* args = alloca(sizeof(aason_arg) * constructor->count);
+
+		const aason_element* children = ctx->elements + element->constructor_value.first_child;
+		for (uint32_t i = 0; i < constructor->count; ++i)
+		{
+			args[i].type = constructor->args[i];
+
+			switch (constructor->args[i])
+			{
+			case aason_arg_type_str:
+				args[i].str_value = buffer + children[i].str_value.offset;
+				break;
+			case aason_arg_type_bin:
+			case aason_arg_type_dec:
+			case aason_arg_type_hex:
+				args[i].int_value = children[i].int_value;
+				break;
+			case aason_arg_type_bool:
+				args[i].bool_value = children[i].bool_value;
+				break;
+			case aason_arg_type_enum:
+				args[i].enum_value = buffer + children[i].enum_value.offset;
+				break;
+			case aason_arg_type_float:
+				args[i].float_value = children[i].float_value;
+				break;
+			}
+		}
+
+		constructor->read(ctx, value, args, constructor->count);
+
+		return true;
 	}
 
 	return false;

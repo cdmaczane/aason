@@ -195,7 +195,10 @@ static void aason_finalise_parse_element(aason_finaliser* finaliser, aason_token
 
 static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_token* self, aason_element* element)
 {
+	aason_assert(self->constructor_index < finaliser->ctx->constructor_count);
+
 	element->type = aason_type_constructor;
+	element->constructor_index = self->constructor_index;
 
 	const uint32_t arg_count = self->count;
 	element->constructor_value.count = arg_count;

@@ -172,6 +172,7 @@ bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags fla
 bool aason_read_object_hash(aason_context* ctx, const char* key, aason_flags flags, uint32_t* value);
 bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value);
 bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags flags, int32_t* value, const char** strings, int32_t count);
+bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_flags flags, void* value, const char* type);
 
 void aason_write_array_enter(aason_context* ctx, const char* key);
 void aason_write_array_leave(aason_context* ctx);
