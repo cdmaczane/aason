@@ -14,6 +14,9 @@ typedef enum
 	aason_token_type_float,
 	aason_token_type_hash_str,
 	aason_token_type_identifier,
+	aason_token_type_constructor,
+	aason_token_type_open_paren,
+	aason_token_type_close_paren,
 	aason_token_type_enter_array,
 	aason_token_type_leave_array,
 	aason_token_type_enter_object,
@@ -36,6 +39,9 @@ static const char* aason_token_type_strings[] = {
 	"floating point number",
 	"hashed string",
 	"identifier",
+	"constructor",
+	"(",
+	")",
 	"[",
 	"]",
 	"{",
@@ -451,7 +457,11 @@ static aason_token_type aason_tokenise_parse_identifier(aason_tokeniser* tokenis
 		if (!aason_tokenise_is_valid_identifier_char(c))
 		{
 			const int64_t len = tokeniser->current - begin;
-			if (len == 4)
+			if (c == '(')
+			{
+				return aason_token_type_constructor;
+			}
+			else if (len == 4)
 			{
 				if (begin[0] == 't' && begin[1] == 'r' && begin[2] == 'u' && begin[3] == 'e')
 					return aason_token_type_true;
@@ -549,6 +559,16 @@ static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch,
 		else if (c == '}')
 		{
 			token->type = aason_token_type_leave_object;
+			aason_tokenise_get_char(&tokeniser);
+		}
+		else if (c == '(')
+		{
+			token->type = aason_token_type_open_paren;
+			aason_tokenise_get_char(&tokeniser);
+		}
+		else if (c == ')')
+		{
+			token->type = aason_token_type_close_paren;
 			aason_tokenise_get_char(&tokeniser);
 		}
 		else if (c == '"')

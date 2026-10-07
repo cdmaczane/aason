@@ -196,6 +196,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 	aason_assert(desc);
 	aason_assert(desc->path);
 	aason_assert(desc->tab_size <= 8);
+	aason_assert(desc->constructor_count <= UINT32_MAX);
 
 	aason_context* ctx = nullptr;
 
@@ -205,8 +206,16 @@ aason_context* aason_read(const aason_read_desc* desc)
 	// Store context on the stack until we know how much memory the parser requires
 	aason_context temp_ctx = {
 		.error = aason_error_none,
-		.reading = true
+		.reading = true,
+		.constructor_count = (uint32_t)desc->constructor_count,
+		.constructors = desc->constructors
 	};
+
+	if (desc->format)
+		temp_ctx.format = desc->format;
+
+	if (desc->error_interface)
+		temp_ctx.error_interface = *desc->error_interface;
 
 	temp_ctx.allocator = *desc->allocator;
 
@@ -227,6 +236,19 @@ aason_context* aason_read(const aason_read_desc* desc)
 	aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch, source, length, tab_size);
 	if (temp_ctx.error == aason_error_none)
 	{
+		// Calculate the amount of memory required to copy constructors
+		size_t constructor_count = desc->constructor_count;
+		size_t constructor_arg_count = 0;
+		size_t constructor_string_size = 0;
+		for (size_t i = 0; i < constructor_count; ++i)
+		{
+			const size_t name_len = strlen(desc->constructors[i]->name);
+			constructor_arg_count += desc->constructors[i]->count;
+			constructor_string_size += name_len + 1; // Add null terminator
+		}
+		const size_t constructor_size = sizeof(aason_constructor_desc) * constructor_count;
+		const size_t constructor_arg_size = sizeof(aason_arg) * constructor_arg_count;
+
 		if (aason_validate(&temp_ctx, &tokens))
 		{
 			// Calculate the amount of memory required for parsing

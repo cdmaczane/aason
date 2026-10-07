@@ -81,10 +81,12 @@ struct aason_context
 	uint32_t						tab_size;
 	bool							reading;
 	uint32_t						stack_depth;
+	uint32_t						constructor_count;
 	aason_locale					locale;
 	aason_format_callback			format;
 	aason_error_interface			error_interface;
 	aason_allocator					allocator;
+	const aason_constructor_desc**	constructors;
 
 	union
 	{
