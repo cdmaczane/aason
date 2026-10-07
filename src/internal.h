@@ -20,7 +20,8 @@ typedef enum
 	aason_type_enum,
 	aason_type_float,
 	aason_type_array,
-	aason_type_object
+	aason_type_object,
+	aason_type_constructor
 } aason_type;
 
 typedef struct
@@ -44,6 +45,12 @@ typedef struct
 			uint32_t	count;
 			uint32_t	first_child;
 		} object_value;
+
+		struct
+		{
+			uint32_t	count;
+			uint32_t	first_child;
+		} constructor_value;
 
 		struct
 		{

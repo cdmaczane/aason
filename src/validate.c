@@ -82,6 +82,66 @@ static aason_token_type aason_validate_expect_either_token(aason_validator* vali
 	return token_type;
 }
 
+static void aason_validate_constructor(aason_validator* validator, aason_token* parent, aason_token* self)
+{
+	aason_token* token;
+
+	char* name = self->begin;
+	const size_t len = self->end - self->begin;
+	name[len] = 0; // Null terminate
+
+	const aason_constructor_desc* constructor = nullptr;
+	for (uint32_t i = 0; i < validator->ctx->constructor_count; ++i)
+	{
+		if (strcmp(name, validator->ctx->constructors[i]->name) == 0)
+		{
+			constructor = validator->ctx->constructors[i];
+			break;
+		}
+	}
+
+	// TODO: Raise error
+	aason_assert(constructor);
+
+	aason_validate_expect_token(validator, aason_token_type_open_paren, &token);
+
+	for (uint32_t i = 0; i < constructor->count; ++i)
+	{
+		switch (constructor->args[i])
+		{
+		case aason_arg_type_str:
+			aason_validate_expect_token(validator, aason_token_type_str, &token);
+			break;
+		case aason_arg_type_bin:
+			aason_validate_expect_token(validator, aason_token_type_bin, &token);
+			break;
+		case aason_arg_type_dec:
+			aason_validate_expect_token(validator, aason_token_type_dec, &token);
+			break;
+		case aason_arg_type_hex:
+			aason_validate_expect_token(validator, aason_token_type_hex, &token);
+			break;
+		case aason_arg_type_bool:
+			aason_validate_expect_either_token(validator, aason_token_type_true, aason_token_type_false, &token);
+			break;
+		case aason_arg_type_enum:
+			aason_validate_expect_token(validator, aason_token_type_identifier, &token);
+			break;
+		case aason_arg_type_float:
+			aason_validate_expect_token(validator, aason_token_type_float, &token);
+			break;
+		}
+
+		if (i < constructor->count - 1)
+			aason_validate_expect_token(validator, aason_token_type_comma, &token); // Skip comma token
+
+		++parent->count;
+		++validator->element_count;
+	}
+
+	aason_validate_expect_token(validator, aason_token_type_close_paren, &token);
+}
+
 static void aason_validate_array(aason_validator* validator, aason_token* parent);
 
 static void aason_validate_object(aason_validator* validator, aason_token* parent)
@@ -109,6 +169,10 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 		case aason_token_type_float:
 		case aason_token_type_hash_str:
 		case aason_token_type_identifier:
+			++parent->count;
+			break;
+		case aason_token_type_constructor:
+			aason_validate_constructor(validator, self, token);
 			++parent->count;
 			break;
 		case aason_token_type_enter_array:
@@ -156,6 +220,10 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 		case aason_token_type_float:
 		case aason_token_type_hash_str:
 		case aason_token_type_identifier:
+			++parent->count;
+			break;
+		case aason_token_type_constructor:
+			aason_validate_constructor(validator, token, token);
 			++parent->count;
 			break;
 		case aason_token_type_enter_object:
@@ -214,6 +282,7 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 		case aason_token_type_float:
 		case aason_token_type_hash_str:
 		case aason_token_type_identifier:
+		case aason_token_type_constructor:
 			break;
 		case aason_token_type_enter_array:
 			aason_validate_array(&validator, self);

@@ -7,7 +7,8 @@ static const char* aason_type_strings[] = {
 	"enum",
 	"float",
 	"array",
-	"object"
+	"object",
+	"constructor"
 };
 
 static void aason_read_error(aason_context* ctx, aason_error_type error, uint32_t line, uint32_t column, const char* fmt, ...)

@@ -143,6 +143,7 @@ static void aason_finalise_parse_enum(aason_finaliser* finaliser, aason_token* t
 
 static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* token, aason_element* element);
+static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 
 static void aason_finalise_parse_element(aason_finaliser* finaliser, aason_token* parent, aason_token* token, aason_element* element, bool inside_array)
 {
@@ -184,9 +185,36 @@ static void aason_finalise_parse_element(aason_finaliser* finaliser, aason_token
 	case aason_token_type_enter_object:
 		aason_finalise_parse_object(finaliser, inside_array ? token : parent, element);
 		break;
+	case aason_token_type_constructor:
+		aason_finalise_parse_constructor(finaliser, parent, element);
+		break;
 	default:
 		break;
 	}
+}
+
+static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_token* self, aason_element* element)
+{
+	element->type = aason_type_constructor;
+
+	const uint32_t arg_count = self->count;
+	element->constructor_value.count = arg_count;
+	element->constructor_value.first_child = finaliser->element_index;
+
+	aason_token* token = aason_finalise_get_next_token(finaliser); // Skip open paren
+
+	aason_element* children = aason_finalise_allocate_elements(finaliser, arg_count);
+
+	for (uint32_t i = 0; i < arg_count; ++i)
+	{
+		token = aason_finalise_get_next_token(finaliser);
+		aason_finalise_parse_element(finaliser, self, token, &children[i], false);
+
+		if (i < arg_count - 1)
+			aason_finalise_get_next_token(finaliser); // Skip comma token
+	}
+
+	aason_finalise_get_next_token(finaliser); // Skip close paren
 }
 
 static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* self, aason_element* element)

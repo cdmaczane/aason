@@ -85,7 +85,9 @@ typedef struct
 typedef enum
 {
 	aason_arg_type_str,
-	aason_arg_type_int,
+	aason_arg_type_bin,
+	aason_arg_type_dec,
+	aason_arg_type_hex,
 	aason_arg_type_bool,
 	aason_arg_type_enum,
 	aason_arg_type_float
