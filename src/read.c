@@ -196,7 +196,7 @@ static aason_file* aason_allocate_file(aason_allocator* scratch, aason_files* fi
 	return &files->files[files->count++];
 }
 
-static uint32_t aason_load_stream(
+static aason_file* aason_load_stream(
 	aason_allocator* scratch,
 	aason_allocator* allocator,
 	aason_read_interface* read_interface,
@@ -208,7 +208,12 @@ static uint32_t aason_load_stream(
 	for (uint32_t i = 0; i < files->count; ++i)
 	{
 		if (strcmp(path, files->files[i].buffer) == 0)
-			return i;
+		{
+			// TODO: Turn into error
+			aason_assert(!files->files[i].inside);
+
+			return nullptr;
+		}
 	}
 
 	// Not found so load
@@ -232,7 +237,7 @@ static uint32_t aason_load_stream(
 				memcpy(buffer, path, path_size);
 				read_interface->read(read_interface->self, stream, buffer + path_size, 0, file_size);
 
-				return (uint32_t)(file - files->files);
+				return file;
 			}
 			else
 			{
@@ -251,7 +256,32 @@ static uint32_t aason_load_stream(
 		// TODO: Report error
 	}
 
-	return UINT32_MAX;
+	return nullptr;
+}
+
+void aason_preparse_recursive(aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, aason_files* files, const char* path)
+{
+	aason_file* file = aason_load_stream(scratch, allocator, read_interface, files, path);
+	if (file)
+	{
+		file->inside = true;
+
+		char* buffer = file->buffer + file->offset;
+		for (uint32_t i = 0; i < file->size; ++i)
+		{
+
+		}
+
+		file->inside = false;
+	}
+}
+
+aason_files aason_preparse(aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, const char* path)
+{
+	aason_files files = {};
+	aason_preparse_recursive(scratch, allocator, read_interface, &files, path);
+
+	return files;
 }
 
 aason_context* aason_read(const aason_read_desc* desc)
@@ -288,9 +318,8 @@ aason_context* aason_read(const aason_read_desc* desc)
 
 	void* frame = scratch.push(scratch.self);
 
-	aason_files files = {};
-	const uint32_t file = aason_load_stream(&scratch, &temp_ctx.allocator, &read_interface, &files, desc->path);
-	aason_assert(file != UINT32_MAX);
+	aason_files files = aason_preparse(&scratch, &temp_ctx.allocator, &read_interface, desc->path);
+	aason_assert(files.count);
 
 	temp_ctx.file_count = files.count;
 	temp_ctx.files = files.files;
