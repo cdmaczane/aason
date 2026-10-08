@@ -473,7 +473,7 @@ static aason_token* aason_allocate_token(aason_allocator* scratch, aason_tokens*
 	return &tokens->tokens[tokens->count++];
 }
 
-static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch, uint32_t file_index)
+static void aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aason_tokens* tokens, uint32_t file_index)
 {
 	aason_assert(file_index < ctx->file_count);
 
@@ -492,7 +492,6 @@ static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch,
 		.next_column	= 1
 	};
 
-	aason_tokens tokens = {};
 	aason_tokenise_get_char(&tokeniser);
 
 	for (;;)
@@ -501,7 +500,7 @@ static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch,
 		if (c == '/')
 			c = aason_tokenise_skip_comments(&tokeniser);
 
-		aason_token* token = aason_allocate_token(scratch, &tokens);
+		aason_token* token = aason_allocate_token(scratch, tokens);
 		token->file_index = file_index;
 		token->count = 0;
 		token->begin = tokeniser.current;
@@ -579,6 +578,22 @@ static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch,
 			break;
 
 		token->end = tokeniser.current;
+	}
+}
+
+static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch)
+{
+	aason_tokens tokens = {};
+
+	for (uint32_t i = 0; i < ctx->file_count; ++i)
+	{
+		ctx->files[i].token_index = tokens.count;
+
+		aason_tokenise_file(ctx, scratch, &tokens, i);
+		if (ctx->error != aason_error_none)
+			break;
+
+		//ctx->files[i].token_count = tokens.count - ctx->files[i].token_index;
 	}
 
 	return tokens;

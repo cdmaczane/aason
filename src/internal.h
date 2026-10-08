@@ -84,8 +84,9 @@ typedef struct
 	char*		buffer;
 	uint32_t	size;
 	uint32_t	offset;
-	bool		inside;
 	uint32_t	token_index;
+	//uint32_t	token_count;
+	bool		inside;
 } aason_file;
 
 // TODO: Allow mechanism to get line and column of last element read for external error handling.

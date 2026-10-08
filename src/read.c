@@ -224,7 +224,7 @@ static aason_file* aason_load_stream(
 		if (file_size)
 		{
 			const size_t path_size = strlen(path) + 1;
-			const size_t total_size = path_size + file_size;
+			const size_t total_size = path_size + file_size + 1;
 
 			char* buffer = (char*)aason_alloc(allocator, total_size);
 			if (buffer)
@@ -236,6 +236,9 @@ static aason_file* aason_load_stream(
 
 				memcpy(buffer, path, path_size);
 				read_interface->read(read_interface->self, stream, buffer + path_size, 0, file_size);
+
+				// Null terminate file data to make parsing simpler
+				buffer[path_size + file_size] = 0;
 
 				return file;
 			}
@@ -267,9 +270,55 @@ void aason_preparse_recursive(aason_allocator* scratch, aason_allocator* allocat
 		file->inside = true;
 
 		char* buffer = file->buffer + file->offset;
-		for (uint32_t i = 0; i < file->size; ++i)
+		char* current = buffer;
+		while (*current)
 		{
+			if (*current == '#')
+			{
+				char* directive_begin = current;
 
+				if (memcmp(current, "#include(\"", 9) == 0)
+				{
+					current += 10;
+					char* path_begin = current;
+
+					// Find end quote
+					for (;;)
+					{
+						++current;
+						if (*current == 0)
+						{
+							aason_assert(false);
+						}
+						else if (*current == '"')
+						{
+							if (current == path_begin)
+							{
+								aason_assert(false);
+							}
+							else if (current[1] != ')')
+							{
+								aason_assert(false);
+							}
+
+							// Null terminate path and recurse
+							*current = 0;
+							aason_preparse_recursive(scratch, allocator, read_interface, files, path_begin);
+
+							// Clear preprocessor statement
+							memset(directive_begin, ' ', (current - directive_begin) + 2);
+
+							break;
+						}
+					}
+				}
+				else
+				{
+					aason_assert(false);
+				}
+			}
+
+			++current;
 		}
 
 		file->inside = false;
@@ -324,7 +373,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 	temp_ctx.file_count = files.count;
 	temp_ctx.files = files.files;
 
-	aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch, 0);
+	aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch);
 	if (temp_ctx.error == aason_error_none)
 	{
 		// Calculate the amount of memory required to copy constructors
