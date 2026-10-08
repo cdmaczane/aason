@@ -38,7 +38,7 @@ static void aason_read_error(aason_context* ctx, aason_error_type error, uint32_
 
 static const char* aason_read_get_buffer(aason_context* ctx)
 {
-	return ctx->files[0];
+	return ctx->files[0].buffer + ctx->files[0].offset;
 }
 
 static const aason_element* aason_read_find_object_element(aason_context* ctx, const char* key, aason_flags flags, aason_type type)
@@ -158,19 +158,65 @@ static size_t aason_align_size(size_t size)
 	return (size + (alignment - 1)) & ~(alignment - 1);
 }
 
-static char* aason_load_stream(aason_allocator* allocator, aason_read_interface* read_interface, const char* path, size_t* size)
+typedef struct
 {
-	char* data = nullptr;
+	aason_file*	files;
+	uint32_t	count;
+	uint32_t	capacity;
+} aason_files;
 
-	void* stream = read_interface->open(read_interface->self, path, size);
+static aason_file* aason_allocate_file(aason_allocator* scratch, aason_files* files)
+{
+	if (files->count == files->capacity)
+	{
+		if (files->count)
+			files->capacity <<= 1;
+		else
+			files->capacity = 64;
+
+		files->files = aason_realloc(scratch, files->files, sizeof(aason_file) * files->capacity);
+	}
+
+	return &files->files[files->count++];
+}
+
+static uint32_t aason_load_stream(
+	aason_allocator* scratch,
+	aason_allocator* allocator,
+	aason_read_interface* read_interface,
+	aason_files* files,
+	const char* path
+)
+{
+	// Check if file has already been loaded
+	for (uint32_t i = 0; i < files->count; ++i)
+	{
+		if (strcmp(path, files->files[i].buffer) == 0)
+			return i;
+	}
+
+	// Not found so load
+	size_t file_size;
+	void* stream = read_interface->open(read_interface->self, path, &file_size);
 	if (stream)
 	{
-		if (*size)
+		if (file_size)
 		{
-			data = aason_alloc(allocator, *size);
-			if (data)
+			const size_t path_size = strlen(path) + 1;
+			const size_t total_size = path_size + file_size;
+
+			char* buffer = (char*)aason_alloc(allocator, total_size);
+			if (buffer)
 			{
-				read_interface->read(read_interface->self, stream, data, 0, *size);
+				aason_file* file = aason_allocate_file(scratch, files);
+				file->buffer = buffer;
+				file->size = (uint32_t)file_size;
+				file->offset = (uint32_t)path_size;
+
+				memcpy(buffer, path, path_size);
+				read_interface->read(read_interface->self, stream, buffer + path_size, 0, file_size);
+
+				return (uint32_t)(file - files->files);
 			}
 			else
 			{
@@ -189,7 +235,7 @@ static char* aason_load_stream(aason_allocator* allocator, aason_read_interface*
 		// TODO: Report error
 	}
 
-	return data;
+	return UINT32_MAX;
 }
 
 aason_context* aason_read(const aason_read_desc* desc)
@@ -225,16 +271,11 @@ aason_context* aason_read(const aason_read_desc* desc)
 
 	void* frame = scratch.push(scratch.self);
 
-	size_t length;
-	char* source = aason_load_stream(&temp_ctx.allocator, &read_interface, desc->path, &length);
+	aason_files files = {};
+	const uint32_t file = aason_load_stream(&scratch, &temp_ctx.allocator, &read_interface, &files, desc->path);
+	aason_assert(file != UINT32_MAX);
 
-	// TODO
-	uint32_t file_count = 1;
-	char* file_array[] = {
-		source
-	};
-
-	aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch, source, length, tab_size);
+	aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch, files.files[0].buffer + files.files[0].offset, files.files[0].size, tab_size);
 	if (temp_ctx.error == aason_error_none)
 	{
 		// Calculate the amount of memory required to copy constructors
@@ -256,7 +297,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 			const size_t context_size	= aason_align_size(sizeof(aason_context));
 			const size_t element_size	= aason_align_size(sizeof(aason_element) * temp_ctx.element_count);
 			const size_t stack_size		= aason_align_size(sizeof(aason_stack_entry) * temp_ctx.max_stack_depth);
-			const size_t file_size		= aason_align_size(sizeof(const char*) * file_count);
+			const size_t file_size		= aason_align_size(sizeof(aason_file) * files.count);
 			const size_t packed_size	= context_size + element_size + stack_size + file_size;
 
 			// Allocate all parsing memory in one go
@@ -279,13 +320,13 @@ aason_context* aason_read(const aason_read_desc* desc)
 				alloc += stack_size;
 
 				// File array
-				ctx->file_count = file_count;
-				ctx->files = (const char**)alloc;
+				ctx->file_count = files.count;
+				ctx->files = (aason_file*)alloc;
 
-				for (uint32_t i = 0; i < file_count; ++i)
-					ctx->files[i] = file_array[i];
+				for (uint32_t i = 0; i < files.count; ++i)
+					ctx->files[i] = files.files[i];
 
-				if (aason_finalise(ctx, source, &tokens))
+				if (aason_finalise(ctx, files.files[0].buffer + files.files[0].offset, &tokens))
 				{
 					ctx->stack_depth = 0;
 					ctx->locale = aason_new_locale();
@@ -293,14 +334,14 @@ aason_context* aason_read(const aason_read_desc* desc)
 				else
 				{
 					// Free context in case of error
-					//desc->allocator(desc->allocator_data, alloc, 0, 0);
 					aason_free(&ctx->allocator, alloc);
 					ctx = nullptr;
 				}
 			}
 		}
 
-		// Free scratch token array
+		// Free scratch arrays
+		aason_free(&scratch, files.files);
 		aason_free(&scratch, tokens.tokens);
 	}
 

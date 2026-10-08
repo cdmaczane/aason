@@ -77,6 +77,15 @@ typedef struct
 	uint32_t array_index;
 } aason_stack_entry;
 
+typedef struct
+{
+	char*		buffer;
+	uint32_t	size;
+	uint32_t	offset;
+	bool		inside;
+	uint32_t	token_index;
+} aason_file;
+
 // TODO: Allow mechanism to get line and column of last element read for external error handling.
 // TODO: Can probably compact as some data will no longer be required once error has occurred.
 // TODO: Consider renaming elements within objects to "fields".
@@ -107,7 +116,7 @@ struct aason_context
 			uint32_t				error_line;
 			uint32_t				error_column;
 			uint32_t				file_count;
-			char**					files;
+			aason_file*				files;
 		};
 
 		struct
