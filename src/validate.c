@@ -2,7 +2,7 @@ typedef struct
 {
 	aason_context*	ctx;
 	aason_tokens*	tokens;
-	const char*		file;
+	uint16_t		file_index;
 	uint32_t		line;
 	uint32_t		column;
 	uint32_t		current_token;
@@ -17,7 +17,7 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 	char buffer[4096];
 
 	validator->ctx->error = error;
-	validator->ctx->error_file = validator->file;
+	//validator->ctx->error_file = validator->file;
 	validator->ctx->error_line = validator->line;
 	validator->ctx->error_column = validator->column;
 
@@ -48,6 +48,7 @@ static aason_token_type aason_validate_get_next_token(aason_validator* validator
 	aason_token* token = &validator->tokens->tokens[validator->current_token++];
 	*out_token = token;
 
+	validator->file_index = token->file_index;
 	validator->line = token->line;
 	validator->column = token->column;
 

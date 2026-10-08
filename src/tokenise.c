@@ -54,8 +54,9 @@ enum
 typedef struct
 {
 	uint16_t			type;
+	uint16_t			file_index;
 	uint16_t			constructor_index;
-	uint32_t			count;
+	uint16_t			count;
 	char*				begin;
 	char*				end;
 	//const char*			file; // TODO
@@ -67,7 +68,7 @@ static_assert(sizeof(aason_token) == 32);
 typedef struct
 {
 	aason_context*	ctx;
-	uint32_t		tab_size;
+	//uint32_t		tab_size;
 	char			c;
 	char*			begin;
 	char*			end;
@@ -78,6 +79,7 @@ typedef struct
 	uint32_t		column;
 	uint32_t		next_line;
 	uint32_t		next_column;
+	uint16_t		file_index;
 } aason_tokeniser;
 
 static bool aason_tokenise_is_valid_bin_char(char c)
@@ -199,7 +201,7 @@ static char aason_tokenise_get_char(aason_tokeniser* tokeniser)
 		{
 			if (c == '\t')
 			{
-				const uint32_t tab_size = tokeniser->tab_size - ((tokeniser->next_column - 1) % tokeniser->tab_size);
+				const uint32_t tab_size = tokeniser->ctx->tab_size - ((tokeniser->next_column - 1) % tokeniser->ctx->tab_size);
 				tokeniser->next_column += tab_size;
 			}
 			else if (c == '\r')
@@ -471,13 +473,17 @@ static aason_token* aason_allocate_token(aason_allocator* scratch, aason_tokens*
 	return &tokens->tokens[tokens->count++];
 }
 
-static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch, char* buffer, int64_t size, uint32_t tab_size)
+static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch, uint32_t file_index)
 {
+	aason_assert(file_index < ctx->file_count);
+
+	aason_file* file = &ctx->files[file_index];
+	char* buffer = file->buffer + file->offset;
+
 	aason_tokeniser tokeniser = {
 		.ctx			= ctx,
-		.tab_size		= tab_size,
 		.begin			= buffer,
-		.end			= buffer + size,
+		.end			= buffer + file->size,
 		.current		= buffer,
 		.next			= buffer,
 		.line			= 1,
@@ -496,6 +502,7 @@ static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch,
 			c = aason_tokenise_skip_comments(&tokeniser);
 
 		aason_token* token = aason_allocate_token(scratch, &tokens);
+		token->file_index = file_index;
 		token->count = 0;
 		token->begin = tokeniser.current;
 		token->line = tokeniser.line;

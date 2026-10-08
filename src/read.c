@@ -36,9 +36,24 @@ static void aason_read_error(aason_context* ctx, aason_error_type error, uint32_
 	}
 }
 
-static const char* aason_read_get_buffer(aason_context* ctx)
+static const char* aason_read_get_key_buffer(aason_context* ctx, const aason_element* element)
 {
-	return ctx->files[0].buffer + ctx->files[0].offset;
+	aason_assert(element->key_file_index < ctx->file_count);
+
+	const aason_file* file = &ctx->files[element->key_file_index];
+	const char* buffer = file->buffer + file->offset;
+
+	return buffer;
+}
+
+static const char* aason_read_get_value_buffer(aason_context* ctx, const aason_element* element)
+{
+	aason_assert(element->value_file_index < ctx->file_count);
+
+	const aason_file* file = &ctx->files[element->value_file_index];
+	const char* buffer = file->buffer + file->offset;
+
+	return buffer;
 }
 
 static const aason_element* aason_read_find_object_element(aason_context* ctx, const char* key, aason_flags flags, aason_type type)
@@ -48,7 +63,6 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 	aason_assert(*key);
 
 	const int64_t key_len = strlen(key);
-	const char* buffer = aason_read_get_buffer(ctx);
 
 	const uint32_t stack_depth = ctx->stack_depth;
 	aason_assert(stack_depth < ctx->max_stack_depth);
@@ -59,7 +73,8 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 
 	if (stack_depth == 0)
 	{
-		if (key_len == object_element->key_len && memcmp(key, buffer + object_element->key_offset, key_len) == 0)
+		const char* key_buffer = aason_read_get_key_buffer(ctx, object_element);
+		if (key_len == object_element->key_len && memcmp(key, key_buffer + object_element->key_offset, key_len) == 0)
 		{
 			if (object_element->type == type)
 			{
@@ -84,8 +99,9 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 		for (uint32_t i = 0; i < count; ++i)
 		{
 			const aason_element* element = &children[i];
+			const char* key_buffer = aason_read_get_key_buffer(ctx, element);
 	
-			if (key_len == element->key_len && memcmp(key, buffer + element->key_offset, key_len) == 0)
+			if (key_len == element->key_len && memcmp(key, key_buffer + element->key_offset, key_len) == 0)
 			{
 				if (element->type == type)
 				{
@@ -253,6 +269,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 	// Store context on the stack until we know how much memory the parser requires
 	aason_context temp_ctx = {
 		.error = aason_error_none,
+		.tab_size = tab_size,
 		.reading = true,
 		.constructor_count = (uint32_t)desc->constructor_count,
 		.constructors = desc->constructors
@@ -275,7 +292,10 @@ aason_context* aason_read(const aason_read_desc* desc)
 	const uint32_t file = aason_load_stream(&scratch, &temp_ctx.allocator, &read_interface, &files, desc->path);
 	aason_assert(file != UINT32_MAX);
 
-	aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch, files.files[0].buffer + files.files[0].offset, files.files[0].size, tab_size);
+	temp_ctx.file_count = files.count;
+	temp_ctx.files = files.files;
+
+	aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch, 0);
 	if (temp_ctx.error == aason_error_none)
 	{
 		// Calculate the amount of memory required to copy constructors
@@ -326,7 +346,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 				for (uint32_t i = 0; i < files.count; ++i)
 					ctx->files[i] = files.files[i];
 
-				if (aason_finalise(ctx, files.files[0].buffer + files.files[0].offset, &tokens))
+				if (aason_finalise(ctx, &tokens))
 				{
 					ctx->stack_depth = 0;
 					ctx->locale = aason_new_locale();
@@ -434,7 +454,7 @@ bool aason_read_array_str(aason_context* ctx, const char** value, int64_t* len)
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_str);
 	if (element)
 	{
-		const char* buffer = aason_read_get_buffer(ctx);
+		const char* buffer = aason_read_get_value_buffer(ctx, element);
 
 		*value = buffer + element->str_value.offset;
 
@@ -455,7 +475,7 @@ bool aason_read_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_str);
 	if (element)
 	{
-		const char* buffer = aason_read_get_buffer(ctx);
+		const char* buffer = aason_read_get_value_buffer(ctx, element);
 		const char* str = buffer + element->str_value.offset;
 		const int64_t len = element->str_value.len;
 
@@ -558,7 +578,7 @@ bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** stri
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_enum);
 	if (element)
 	{
-		const char* buffer = aason_read_get_buffer(ctx);
+		const char* buffer = aason_read_get_value_buffer(ctx, element);
 		const uint32_t lhs_offset = element->enum_value.offset;
 		const int64_t lhs_len = element->enum_value.len;
 		const char* enum_value = &buffer[lhs_offset];
@@ -620,7 +640,7 @@ bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flag
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_str);
 	if (element)
 	{
-		const char* buffer = aason_read_get_buffer(ctx);
+		const char* buffer = aason_read_get_value_buffer(ctx, element);
 
 		*value = buffer + element->str_value.offset;
 
@@ -641,7 +661,7 @@ bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flag
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_str);
 	if (element)
 	{
-		const char* buffer = aason_read_get_buffer(ctx);
+		const char* buffer = aason_read_get_value_buffer(ctx, element);
 		const char* str = buffer + element->str_value.offset;
 		const int64_t len = element->str_value.len;
 
@@ -744,7 +764,7 @@ bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags fla
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_enum);
 	if (element)
 	{
-		const char* buffer = aason_read_get_buffer(ctx);
+		const char* buffer = aason_read_get_value_buffer(ctx, element);
 		const uint32_t lhs_offset = element->enum_value.offset;
 		const int64_t lhs_len = element->enum_value.len;
 		const char* enum_value = &buffer[lhs_offset];
@@ -780,14 +800,14 @@ bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_fl
 		const aason_constructor_desc* constructor = ctx->constructors[element->constructor_index];
 		aason_assert(strcmp(type, constructor->name) == 0);
 
-		const char* buffer = aason_read_get_buffer(ctx);
-
 		// TODO: Get rid of allocation
 		aason_arg* args = alloca(sizeof(aason_arg) * constructor->count);
 
 		const aason_element* children = ctx->elements + element->constructor_value.first_child;
 		for (uint32_t i = 0; i < constructor->count; ++i)
 		{
+			const char* buffer = aason_read_get_value_buffer(ctx, &children[i]);
+
 			args[i].type = constructor->args[i];
 
 			switch (constructor->args[i])

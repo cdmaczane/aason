@@ -1,7 +1,7 @@
 typedef struct
 {
 	aason_context*	ctx;
-	char*			begin;
+	//char*			begin;
 	aason_tokens*	tokens;
 	uint32_t		token_index;
 	uint32_t		element_index;
@@ -54,8 +54,12 @@ static aason_element* aason_finalise_allocate_elements(aason_finaliser* finalise
 
 static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
+	aason_file* file = &finaliser->ctx->files[token->file_index];
+	char* buffer = file->buffer + file->offset;
+
 	element->type = aason_type_str;
-	element->str_value.offset = (uint32_t)(token->begin - finaliser->begin) + 1;
+	element->value_file_index = token->file_index;
+	element->str_value.offset = (uint32_t)(token->begin - buffer) + 1;
 	element->str_value.len = (uint32_t)(token->end - token->begin) - 1;
 
 	// Null terminate string
@@ -65,6 +69,7 @@ static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* to
 static void aason_finalise_parse_bin(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_int;
+	element->value_file_index = token->file_index;
 
 	if (!aason_from_string_bin(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Binary integer too large");
@@ -73,6 +78,7 @@ static void aason_finalise_parse_bin(aason_finaliser* finaliser, aason_token* to
 static void aason_finalise_parse_dec(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_int;
+	element->value_file_index = token->file_index;
 
 	if (!aason_from_string_dec(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Decimal integer too large");
@@ -81,6 +87,7 @@ static void aason_finalise_parse_dec(aason_finaliser* finaliser, aason_token* to
 static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_int;
+	element->value_file_index = token->file_index;
 
 	if (!aason_from_string_hex(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Hexadecimal integer too large");
@@ -89,18 +96,21 @@ static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* to
 static void aason_finalise_parse_true(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_bool;
+	element->value_file_index = token->file_index;
 	element->bool_value = true;
 }
 
 static void aason_finalise_parse_false(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_bool;
+	element->value_file_index = token->file_index;
 	element->bool_value = false;
 }
 
 static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_float;
+	element->value_file_index = token->file_index;
 
 	if (!aason_from_string_float(finaliser->ctx->locale, token->begin, token->end, &element->float_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Floating point number out of range");
@@ -108,8 +118,12 @@ static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* 
 
 static void aason_finalise_parse_enum(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
+	aason_file* file = &finaliser->ctx->files[token->file_index];
+	char* buffer = file->buffer + file->offset;
+
 	element->type = aason_type_enum;
-	element->enum_value.offset = (uint32_t)(token->begin - finaliser->begin);
+	element->value_file_index = token->file_index;
+	element->enum_value.offset = (uint32_t)(token->begin - buffer);
 	element->enum_value.len = (uint32_t)(token->end - token->begin);
 
 	// Null terminate string
@@ -203,8 +217,9 @@ static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* 
 	{
 		aason_token* token = aason_finalise_get_next_token(finaliser);
 
-		children[i].key_offset = 0;
+		children[i].key_file_index = token->file_index;
 		children[i].key_len = 0;
+		children[i].key_offset = 0;
 		children[i].line = token->line;
 		children[i].column = token->column;
 
@@ -233,8 +248,12 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 		aason_finalise_get_next_token(finaliser); // Skip colon token
 		*self->end = 0; // Null terminate key string
 
-		children[i].key_offset = (uint32_t)(self->begin - finaliser->begin);
+		aason_file* file = &finaliser->ctx->files[self->file_index];
+		char* buffer = file->buffer + file->offset;
+
+		children[i].key_file_index = self->file_index;
 		children[i].key_len = (uint32_t)(self->end - self->begin);
+		children[i].key_offset = (uint32_t)(self->begin - buffer);
 		children[i].line = self->line;
 		children[i].column = self->column;
 
@@ -248,11 +267,10 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 	aason_finalise_get_next_token(finaliser); // Skip leave object token
 }
 
-static bool aason_finalise(aason_context* ctx, char* buffer, aason_tokens* tokens)
+static bool aason_finalise(aason_context* ctx, aason_tokens* tokens)
 {
 	aason_finaliser finaliser = {
 		.ctx	= ctx,
-		.begin	= buffer,
 		.tokens	= tokens
 	};
 
@@ -261,11 +279,15 @@ static bool aason_finalise(aason_context* ctx, char* buffer, aason_tokens* token
 		aason_token* self = aason_finalise_get_next_token(&finaliser);
 		aason_finalise_get_next_token(&finaliser); // Skip colon token
 		*self->end = 0; // Null terminate key string
+
+		aason_file* file = &ctx->files[self->file_index];
+		char* buffer = file->buffer + file->offset;
 	
 		// Allocate root element
 		aason_element* element = aason_finalise_allocate_elements(&finaliser, 1);
-		element->key_offset = (uint32_t)(self->begin - buffer);
+		element->key_file_index = self->file_index;
 		element->key_len = (uint32_t)(self->end - self->begin);
+		element->key_offset = (uint32_t)(self->begin - buffer);
 		element->line = self->line;
 		element->column = self->column;
 

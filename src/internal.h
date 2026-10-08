@@ -26,9 +26,11 @@ typedef enum
 typedef struct
 {
 	aason_type			type;
-	uint32_t			constructor_index;
+	uint16_t			key_file_index;
+	uint16_t			value_file_index;
+	uint16_t			constructor_index;
+	uint16_t			key_len;
 	uint32_t			key_offset;
-	uint32_t			key_len;
 	uint32_t			line;
 	uint32_t			column;
 
