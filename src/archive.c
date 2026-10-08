@@ -64,14 +64,6 @@ void aason_archive_array_bool(aason_context* ctx, bool* value)
 		aason_write_array_bool(ctx, *value);
 }
 
-void aason_archive_array_hash(aason_context* ctx, uint32_t* value)
-{
-	if (ctx->reading)
-		aason_read_array_hash(ctx, value);
-	else
-		aason_write_array_hash(ctx, *value);
-}
-
 void aason_archive_array_float(aason_context* ctx, float* value)
 {
 	if (ctx->reading)
@@ -178,24 +170,6 @@ bool aason_archive_object_bool(aason_context* ctx, const char* key, bool* value,
 	else
 	{
 		aason_write_object_bool(ctx, key, *value);
-	}
-
-	return true;
-}
-
-bool aason_archive_object_hash(aason_context* ctx, const char* key, uint32_t* value, uint32_t default_value)
-{
-	if (ctx->reading)
-	{
-		if (!aason_read_object_hash(ctx, key, aason_optional, value))
-		{
-			*value = default_value;
-			return false;
-		}
-	}
-	else
-	{
-		aason_write_object_hash(ctx, key, *value);
 	}
 
 	return true;

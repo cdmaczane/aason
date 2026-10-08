@@ -6,13 +6,11 @@ typedef enum
 	aason_token_type_bin,
 	aason_token_type_dec,
 	aason_token_type_hex,
-	aason_token_type_hash,
 	aason_token_type_true,
 	aason_token_type_false,
 	aason_token_type_comma,
 	aason_token_type_colon,
 	aason_token_type_float,
-	aason_token_type_hash_str,
 	aason_token_type_identifier,
 	aason_token_type_constructor,
 	aason_token_type_open_paren,
@@ -31,13 +29,11 @@ static const char* aason_token_type_strings[] = {
 	"binary number",
 	"decimal number",
 	"hexadecimal number",
-	"#",
 	"true",
 	"false",
 	",",
 	":",
 	"floating point number",
-	"hashed string",
 	"identifier",
 	"constructor",
 	"(",
@@ -362,33 +358,6 @@ static aason_token_type aason_tokenise_parse_str(aason_tokeniser* tokeniser)
 	return aason_token_type_str;
 }
 
-static aason_token_type aason_tokenise_parse_hash(aason_tokeniser* tokeniser)
-{
-	char c = aason_tokenise_get_char(tokeniser);
-
-	if (c == '"')
-	{
-		const aason_token_type type = aason_tokenise_parse_str(tokeniser);
-		if (type == aason_token_type_str)
-			return aason_token_type_hash_str;
-		else
-			return type;
-	}
-
-	for (int i = 0; i < 8; ++i)
-	{
-		if (!aason_tokenise_is_valid_hex_char(c))
-		{
-			aason_tokenise_error(tokeniser, aason_error_invalid_char, "Character '{c}' is not a valid hexadecimal character");
-			return aason_token_type_error;
-		}
-
-		c = aason_tokenise_get_char(tokeniser);
-	}
-
-	return aason_token_type_hash;
-}
-
 static aason_token_type aason_tokenise_parse_bin(aason_tokeniser* tokeniser)
 {
 	for (;;)
@@ -575,10 +544,6 @@ static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch,
 		else if (c == '"')
 		{
 			token->type = aason_tokenise_parse_str(&tokeniser);
-		}
-		else if (c == '#')
-		{
-			token->type = aason_tokenise_parse_hash(&tokeniser);
 		}
 		else if (aason_tokenise_is_valid_dec_char(c))
 		{

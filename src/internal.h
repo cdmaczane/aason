@@ -16,7 +16,6 @@ typedef enum
 	aason_type_str = 1,
 	aason_type_int,
 	aason_type_bool,
-	aason_type_hash,
 	aason_type_enum,
 	aason_type_float,
 	aason_type_array,
@@ -67,7 +66,6 @@ typedef struct
 
 		int64_t			int_value;
 		bool			bool_value;
-		uint32_t		hash_value;
 		float			float_value;
 	};
 } aason_element;

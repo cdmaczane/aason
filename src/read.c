@@ -494,20 +494,6 @@ bool aason_read_array_bool(aason_context* ctx, bool* value)
 	return false;
 }
 
-bool aason_read_array_hash(aason_context* ctx, uint32_t* value)
-{
-	aason_assert(value);
-
-	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_hash);
-	if (element)
-	{
-		*value = element->hash_value;
-		return true;
-	}
-
-	return false;
-}
-
 bool aason_read_array_float(aason_context* ctx, float* value)
 {
 	aason_assert(value);
@@ -688,20 +674,6 @@ bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags fla
 	if (element)
 	{
 		*value = element->bool_value;
-		return true;
-	}
-
-	return false;
-}
-
-bool aason_read_object_hash(aason_context* ctx, const char* key, aason_flags flags, uint32_t* value)
-{
-	aason_assert(value);
-
-	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_hash);
-	if (element)
-	{
-		*value = element->hash_value;
 		return true;
 	}
 

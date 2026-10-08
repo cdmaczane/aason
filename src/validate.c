@@ -166,11 +166,9 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 		case aason_token_type_bin:
 		case aason_token_type_dec:
 		case aason_token_type_hex:
-		case aason_token_type_hash:
 		case aason_token_type_true:
 		case aason_token_type_false:
 		case aason_token_type_float:
-		case aason_token_type_hash_str:
 		case aason_token_type_identifier:
 			++parent->count;
 			break;
@@ -217,11 +215,9 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 		case aason_token_type_bin:
 		case aason_token_type_dec:
 		case aason_token_type_hex:
-		case aason_token_type_hash:
 		case aason_token_type_true:
 		case aason_token_type_false:
 		case aason_token_type_float:
-		case aason_token_type_hash_str:
 		case aason_token_type_identifier:
 			++parent->count;
 			break;
@@ -279,11 +275,9 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 		case aason_token_type_bin:
 		case aason_token_type_dec:
 		case aason_token_type_hex:
-		case aason_token_type_hash:
 		case aason_token_type_true:
 		case aason_token_type_false:
 		case aason_token_type_float:
-		case aason_token_type_hash_str:
 		case aason_token_type_identifier:
 		case aason_token_type_constructor:
 			break;

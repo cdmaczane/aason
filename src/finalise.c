@@ -86,12 +86,6 @@ static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* to
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Hexadecimal integer too large");
 }
 
-static void aason_finalise_parse_hash(aason_finaliser* finaliser, aason_token* token, aason_element* element)
-{
-	element->type = aason_type_hash;
-	aason_from_string_hash(token->begin + 1, token->end, &element->hash_value);
-}
-
 static void aason_finalise_parse_true(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_bool;
@@ -110,25 +104,6 @@ static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* 
 
 	if (!aason_from_string_float(finaliser->ctx->locale, token->begin, token->end, &element->float_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, "Floating point number out of range");
-}
-
-// TODO: Move
-static uint32_t aason_fnv32(const char* str, size_t size)
-{
-	uint32_t hash = 2166136261;
-	while (size--)
-	{
-		hash ^= *str++;
-		hash *= 16777619;
-	}
-
-	return hash;
-}
-
-static void aason_finalise_parse_hash_str(aason_finaliser* finaliser, aason_token* token, aason_element* element)
-{
-	element->type = aason_type_hash;
-	element->hash_value = aason_fnv32(token->begin + 2, token->end - token->begin - 3);
 }
 
 static void aason_finalise_parse_enum(aason_finaliser* finaliser, aason_token* token, aason_element* element)
@@ -161,9 +136,6 @@ static void aason_finalise_parse_element(aason_finaliser* finaliser, aason_token
 	case aason_token_type_hex:
 		aason_finalise_parse_hex(finaliser, token, element);
 		break;
-	case aason_token_type_hash:
-		aason_finalise_parse_hash(finaliser, token, element);
-		break;
 	case aason_token_type_true:
 		aason_finalise_parse_true(finaliser, token, element);
 		break;
@@ -172,9 +144,6 @@ static void aason_finalise_parse_element(aason_finaliser* finaliser, aason_token
 		break;
 	case aason_token_type_float:
 		aason_finalise_parse_float(finaliser, token, element);
-		break;
-	case aason_token_type_hash_str:
-		aason_finalise_parse_hash_str(finaliser, token, element);
 		break;
 	case aason_token_type_identifier:
 		aason_finalise_parse_enum(finaliser, token, element);

@@ -229,13 +229,6 @@ void aason_write_array_bool(aason_context* ctx, bool value)
 	aason_write_commit(ctx, out);
 }
 
-void aason_write_array_hash(aason_context* ctx, uint32_t value)
-{
-	char* out = aason_write_add_array_element(ctx, aason_hash_len, 0);
-	out = aason_to_string_hash(out, value);
-	aason_write_commit(ctx, out);
-}
-
 void aason_write_array_float(aason_context* ctx, float value)
 {
 	char* out = aason_write_add_array_element(ctx, aason_float_max_len, 0);
@@ -324,13 +317,6 @@ void aason_write_object_bool(aason_context* ctx, const char* key, bool value)
 {
 	char* out = aason_write_add_object_element(ctx, key, aason_bool_max_len, 0);
 	out = aason_to_string_bool(out, value);
-	aason_write_commit(ctx, out);
-}
-
-void aason_write_object_hash(aason_context* ctx, const char* key, uint32_t value)
-{
-	char* out = aason_write_add_object_element(ctx, key, aason_hash_len, 0);
-	out = aason_to_string_hash(out, value);
 	aason_write_commit(ctx, out);
 }
 
