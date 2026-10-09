@@ -3,6 +3,7 @@ typedef struct
 	aason_context*	ctx;
 	//char*			begin;
 	aason_tokens*	tokens;
+	uint32_t		file_index;
 	uint32_t		token_index;
 	uint32_t		element_index;
 	jmp_buf			jmp_ctx;
@@ -39,7 +40,37 @@ static aason_token* aason_finalise_get_next_token(aason_finaliser* finaliser)
 {
 	aason_assert(finaliser->token_index < finaliser->tokens->count);
 
-	return &finaliser->tokens->tokens[finaliser->token_index++];
+	aason_token* token = &finaliser->tokens->tokens[finaliser->token_index++];
+	while (token->type == aason_token_type_jump)
+	{
+		const uint16_t new_file_index = token->count;
+		aason_assert(new_file_index < finaliser->ctx->file_count);
+		aason_file* new_file = &finaliser->ctx->files[new_file_index];
+
+		new_file->return_file = finaliser->file_index;
+		new_file->return_index = finaliser->token_index;
+		finaliser->file_index = new_file_index;
+		finaliser->token_index = new_file->token_index;
+
+		token = &finaliser->tokens->tokens[finaliser->token_index++];
+	}
+
+	while (token->type == aason_token_type_eof)
+	{
+		const uint16_t old_file_index = finaliser->file_index;
+		aason_assert(old_file_index < finaliser->ctx->file_count);
+		aason_file* old_file = &finaliser->ctx->files[old_file_index];
+
+		if (old_file->return_index == 0)
+			break;
+
+		finaliser->token_index = old_file->return_index;
+		finaliser->file_index = old_file->return_file;
+
+		token = &finaliser->tokens->tokens[finaliser->token_index++];
+	}
+
+	return token;
 }
 
 static aason_element* aason_finalise_allocate_elements(aason_finaliser* finaliser, uint32_t count)
@@ -273,6 +304,8 @@ static bool aason_finalise(aason_context* ctx, aason_tokens* tokens)
 		.ctx	= ctx,
 		.tokens	= tokens
 	};
+
+	ctx->files[0].return_index = 0;
 
 	if (!setjmp(finaliser.jmp_ctx))
 	{

@@ -262,7 +262,7 @@ static aason_file* aason_load_stream(
 	return nullptr;
 }
 
-void aason_preparse_recursive(aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, aason_files* files, const char* path)
+uint32_t aason_preparse_recursive(aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, aason_files* files, const char* path)
 {
 	aason_file* file = aason_load_stream(scratch, allocator, read_interface, files, path);
 	if (file)
@@ -303,10 +303,14 @@ void aason_preparse_recursive(aason_allocator* scratch, aason_allocator* allocat
 
 							// Null terminate path and recurse
 							*current = 0;
-							aason_preparse_recursive(scratch, allocator, read_interface, files, path_begin);
+							const uint32_t include_index = aason_preparse_recursive(scratch, allocator, read_interface, files, path_begin);
 
 							// Clear preprocessor statement
 							memset(directive_begin, ' ', (current - directive_begin) + 2);
+
+							// Inject jump control code and file index
+							directive_begin[0] = aason_tokenise_char_jump;
+							memcpy(directive_begin + 1, &include_index, 4);
 
 							break;
 						}
@@ -322,7 +326,11 @@ void aason_preparse_recursive(aason_allocator* scratch, aason_allocator* allocat
 		}
 
 		file->inside = false;
+
+		return (uint32_t)(file - files->files);
 	}
+
+	return UINT32_MAX;
 }
 
 aason_files aason_preparse(aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, const char* path)
@@ -399,7 +407,6 @@ aason_context* aason_read(const aason_read_desc* desc)
 			const size_t packed_size	= context_size + element_size + stack_size + file_size;
 
 			// Allocate all parsing memory in one go
-			//uint8_t* alloc = (uint8_t*)desc->allocator(desc->allocator_data, nullptr, 0, packed_size);
 			uint8_t* alloc = (uint8_t*)aason_alloc(&temp_ctx.allocator, packed_size);
 			if (alloc)
 			{

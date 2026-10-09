@@ -19,6 +19,7 @@ typedef enum
 	aason_token_type_leave_array,
 	aason_token_type_enter_object,
 	aason_token_type_leave_object,
+	aason_token_type_jump,
 	aason_token_type_count
 } aason_token_type;
 
@@ -41,16 +42,19 @@ static const char* aason_token_type_strings[] = {
 	"[",
 	"]",
 	"{",
-	"}"
+	"}",
+	"JMP"
 };
 static_assert(sizeof(aason_token_type_strings) / sizeof(const char*) == aason_token_type_count);
 
 enum
 {
 	aason_tokenise_char_error,
-	aason_tokenise_char_eof
+	aason_tokenise_char_eof,
+	aason_tokenise_char_jump
 };
 
+// TODO: I think if we add a union we can remove some 16-bit limitations
 typedef struct
 {
 	uint16_t			type;
@@ -212,6 +216,10 @@ static char aason_tokenise_get_char(aason_tokeniser* tokeniser)
 			{
 				++tokeniser->next_line;
 				tokeniser->next_column = 1;
+			}
+			else if (c == aason_tokenise_char_jump)
+			{
+				c = aason_tokenise_char_jump;
 			}
 			else
 			{
@@ -558,6 +566,16 @@ static void aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 		else if (aason_tokenise_is_valid_identifier_first_char(c))
 		{
 			token->type = aason_tokenise_parse_identifier(&tokeniser);
+		}
+		else if (c == aason_tokenise_char_jump)
+		{
+			token->type = aason_token_type_jump;
+			uint32_t file_index;
+			memcpy(&file_index, tokeniser.current + 1, 4);
+			token->count = file_index; // TODO: Don't re-use this variable
+			tokeniser.next += 5;
+			tokeniser.current = tokeniser.next;
+			aason_tokenise_get_char(&tokeniser);
 		}
 		else if (c == aason_tokenise_char_eof)
 		{

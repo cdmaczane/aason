@@ -81,12 +81,14 @@ typedef struct
 
 typedef struct
 {
-	char*		buffer;
-	uint32_t	size;
-	uint32_t	offset;
-	uint32_t	token_index;
+	char*		buffer;			// Buffer to path string followed by the file data and a null terminator
+	uint32_t	size;			// Does not include the null terminator which simplifies parsing
+	uint32_t	offset;			// Buffer starts with path string, so this is the offset to the actual data
+	uint32_t	token_index;	// Index of first token from this file in global token array
+	uint32_t	return_file;
+	uint32_t	return_index;
 	//uint32_t	token_count;
-	bool		inside;
+	bool		inside;			// Used to check for recursion
 } aason_file;
 
 // TODO: Allow mechanism to get line and column of last element read for external error handling.

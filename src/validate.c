@@ -46,9 +46,38 @@ static aason_token_type aason_validate_get_next_token(aason_validator* validator
 	aason_assert(validator->current_token < validator->tokens->count);
 
 	aason_token* token = &validator->tokens->tokens[validator->current_token++];
+	while (token->type == aason_token_type_jump)
+	{
+		const uint16_t new_file_index = token->count;
+		aason_assert(new_file_index < validator->ctx->file_count);
+		aason_file* new_file = &validator->ctx->files[new_file_index];
+
+		new_file->return_file = validator->file_index;
+		new_file->return_index = validator->current_token;
+		validator->file_index = new_file_index;
+		validator->current_token = new_file->token_index;
+
+		token = &validator->tokens->tokens[validator->current_token++];
+	}
+
+	while (token->type == aason_token_type_eof)
+	{
+		const uint16_t old_file_index = validator->file_index;
+		aason_assert(old_file_index < validator->ctx->file_count);
+		aason_file* old_file = &validator->ctx->files[old_file_index];
+
+		if (old_file->return_index == 0)
+			break;
+
+		validator->current_token = old_file->return_index;
+		validator->file_index = old_file->return_file;
+
+		token = &validator->tokens->tokens[validator->current_token++];
+	}
+
 	*out_token = token;
 
-	validator->file_index = token->file_index;
+	//validator->file_index = token->file_index;
 	validator->line = token->line;
 	validator->column = token->column;
 
@@ -262,6 +291,8 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 		.max_depth		= 1,
 		.element_count	= 0
 	};
+
+	ctx->files[0].return_index = 0;
 
 	if (!setjmp(validator.jmp_ctx))
 	{
