@@ -23,6 +23,16 @@ typedef enum
 	aason_type_constructor
 } aason_type;
 
+/*
+	TODO:
+	* Store value offset and remove line and column.
+	* Instead calculate line and column on demand when an error occurs.
+	* Move constructor index into union, making the index and count both uint16_t.
+	* Now that we have value offset, we can replace offset with a hash in enum.
+	* With these changes the key and value file indices could probably be uint32_t.
+	* Create a parallel array of uint32_t key hashes to improve speed of field searches.
+	* Maintain field search cursor, assuming that subsequent fields are likely to match data and parse order.
+*/
 typedef struct
 {
 	aason_type			type;
