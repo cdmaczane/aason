@@ -45,15 +45,15 @@ typedef enum
 	aason_error_end_of_array,
 	aason_error_invalid_enum,
 	aason_error_key_not_found,
+	aason_error_invalid_range,
+	aason_error_array_too_large,
 	aason_error_buffer_too_small
 } aason_error_type;
 
-void aason_error(aason_context* ctx, aason_error_type type, const char* format, ...);
-
 typedef struct
 {
-	void*	state;
-	void	(*error)(void* state, aason_error_type error, uint32_t line, uint32_t column, const char* str);
+	void*	user_data;
+	void	(*error)(void* user_data, aason_error_type error, const char* file, uint32_t line, uint32_t column, const char* msg);
 } aason_error_interface;
 
 typedef struct
@@ -106,8 +106,6 @@ typedef struct
 	};
 } aason_arg;
 
-typedef void (*aason_format_callback)(char* out, size_t size, const char* format, va_list args);
-
 typedef struct
 {
 	const char*				name;
@@ -116,6 +114,8 @@ typedef struct
 	void					(*read)(aason_context* ctx, void* value, const aason_arg* args, size_t count);
 	void					(*write)(aason_context* ctx, void* value);
 } aason_constructor_desc;
+
+typedef void (*aason_format_callback)(char* out, size_t size, const char* format, va_list args);
 
 typedef struct
 {
@@ -149,6 +149,8 @@ aason_context* aason_write(const aason_write_desc* desc);
 void aason_destroy(aason_context* ctx);
 bool aason_reading(const aason_context* ctx);
 bool aason_writing(const aason_context* ctx);
+
+void aason_error(aason_context* ctx, aason_error_type type, const char* format, ...);
 
 bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags flags, int64_t* size, int64_t max_size);
 void aason_read_array_leave(aason_context* ctx);

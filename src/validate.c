@@ -16,8 +16,11 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 {
 	char buffer[4096];
 
+	aason_assert(validator->file_index < validator->ctx->file_count);
+	aason_file* file = &validator->ctx->files[validator->file_index];
+
 	validator->ctx->error = error;
-	//validator->ctx->error_file = validator->file;
+	validator->ctx->error_file = file->buffer;
 	validator->ctx->error_line = validator->line;
 	validator->ctx->error_column = validator->column;
 
@@ -29,8 +32,9 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 		va_end(args);
 	
 		validator->ctx->error_interface.error(
-			validator->ctx->error_interface.state,
+			validator->ctx->error_interface.user_data,
 			error,
+			file->buffer,
 			validator->line,
 			validator->column,
 			buffer

@@ -13,7 +13,11 @@ static void aason_finalise_error(aason_finaliser* finaliser, aason_error_type er
 {
 	char buffer[4096];
 
+	aason_assert(finaliser->file_index < finaliser->ctx->file_count);
+	aason_file* file = &finaliser->ctx->files[finaliser->file_index];
+
 	finaliser->ctx->error = error;
+	finaliser->ctx->error_file = file->buffer;
 	finaliser->ctx->error_line = finaliser->tokens->tokens[finaliser->token_index].line;
 	finaliser->ctx->error_column = finaliser->tokens->tokens[finaliser->token_index].column;
 
@@ -25,8 +29,9 @@ static void aason_finalise_error(aason_finaliser* finaliser, aason_error_type er
 		va_end(args);
 	
 		finaliser->ctx->error_interface.error(
-			finaliser->ctx->error_interface.state,
+			finaliser->ctx->error_interface.user_data,
 			error,
+			file->buffer,
 			finaliser->ctx->error_line,
 			finaliser->ctx->error_column,
 			buffer

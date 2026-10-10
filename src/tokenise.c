@@ -153,8 +153,9 @@ static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type er
 		va_end(args);
 	
 		tokeniser->ctx->error_interface.error(
-			tokeniser->ctx->error_interface.state,
+			tokeniser->ctx->error_interface.user_data,
 			error,
+			tokeniser->file,
 			tokeniser->line,
 			tokeniser->column,
 			buffer

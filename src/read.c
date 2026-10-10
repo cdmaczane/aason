@@ -11,11 +11,15 @@ static const char* aason_type_strings[] = {
 	"constructor"
 };
 
-static void aason_read_error(aason_context* ctx, aason_error_type error, uint32_t line, uint32_t column, const char* fmt, ...)
+static void aason_read_error(aason_context* ctx, aason_error_type error, uint32_t file_index, uint32_t line, uint32_t column, const char* fmt, ...)
 {
 	char buffer[4096];
 
+	aason_assert(file_index < ctx->file_count);
+	aason_file* file = &ctx->files[file_index];
+
 	ctx->error = error;
+	ctx->error_file = file->buffer;
 	ctx->error_line = line;
 	ctx->error_column = column;
 
@@ -27,8 +31,9 @@ static void aason_read_error(aason_context* ctx, aason_error_type error, uint32_
 		va_end(args);
 	
 		ctx->error_interface.error(
-			ctx->error_interface.state,
+			ctx->error_interface.user_data,
 			error,
+			file->buffer,
 			line,
 			column,
 			buffer
@@ -82,7 +87,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 			}
 			else
 			{
-				aason_read_error(ctx, aason_error_wrong_type, object_element->line, object_element->column,
+				aason_read_error(ctx, aason_error_wrong_type, object_element->key_file_index, object_element->line, object_element->column,
 					"Root element '{s}' has type '{s}' instead of expected type '{s}'",
 					key, aason_type_strings[object_element->type], aason_type_strings[type]
 				);
@@ -109,7 +114,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 				}
 				else
 				{
-					aason_read_error(ctx, aason_error_wrong_type, element->line, element->column,
+					aason_read_error(ctx, aason_error_wrong_type, element->key_file_index, element->line, element->column,
 						"Element '{s}' has type '{s}' instead of expected type '{s}'",
 						key, aason_type_strings[element->type], aason_type_strings[type]
 					);
@@ -123,7 +128,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 	if (flags == aason_required)
 	{
 		// TODO: Improve error message when root element is not found
-		aason_read_error(ctx, aason_error_key_not_found, object_element->line, object_element->column,
+		aason_read_error(ctx, aason_error_key_not_found, object_element->key_file_index, object_element->line, object_element->column,
 			"Unable to find required element '{s}'", key
 		);
 	}
@@ -158,7 +163,7 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 		}
 		else
 		{
-			aason_read_error(ctx, aason_error_wrong_type, element->line, element->column,
+			aason_read_error(ctx, aason_error_wrong_type, element->value_file_index, element->line, element->column,
 				"Array element has type '{s}' instead of expected type '{s}'",
 				aason_type_strings[element->type], aason_type_strings[type]
 			);
@@ -376,78 +381,79 @@ aason_context* aason_read(const aason_read_desc* desc)
 	void* frame = scratch.push(scratch.self);
 
 	aason_files files = aason_preparse(&scratch, &temp_ctx.allocator, &read_interface, desc->path);
-	aason_assert(files.count);
-
-	temp_ctx.file_count = files.count;
-	temp_ctx.files = files.files;
-
-	aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch);
-	if (temp_ctx.error == aason_error_none)
+	if (files.count)
 	{
-		// Calculate the amount of memory required to copy constructors
-		size_t constructor_count = desc->constructor_count;
-		size_t constructor_arg_count = 0;
-		size_t constructor_string_size = 0;
-		for (size_t i = 0; i < constructor_count; ++i)
-		{
-			const size_t name_len = strlen(desc->constructors[i]->name);
-			constructor_arg_count += desc->constructors[i]->count;
-			constructor_string_size += name_len + 1; // Add null terminator
-		}
-		const size_t constructor_size = sizeof(aason_constructor_desc) * constructor_count;
-		const size_t constructor_arg_size = sizeof(aason_arg) * constructor_arg_count;
+		temp_ctx.file_count = files.count;
+		temp_ctx.files = files.files;
 
-		if (aason_validate(&temp_ctx, &tokens))
+		aason_tokens tokens = aason_tokenise(&temp_ctx, &scratch);
+		if (temp_ctx.error == aason_error_none)
 		{
-			// Calculate the amount of memory required for parsing
-			const size_t context_size	= aason_align_size(sizeof(aason_context));
-			const size_t element_size	= aason_align_size(sizeof(aason_element) * temp_ctx.element_count);
-			const size_t stack_size		= aason_align_size(sizeof(aason_stack_entry) * temp_ctx.max_stack_depth);
-			const size_t file_size		= aason_align_size(sizeof(aason_file) * files.count);
-			const size_t packed_size	= context_size + element_size + stack_size + file_size;
-
-			// Allocate all parsing memory in one go
-			uint8_t* alloc = (uint8_t*)aason_alloc(&temp_ctx.allocator, packed_size);
-			if (alloc)
+			// Calculate the amount of memory required to copy constructors
+			size_t constructor_count = desc->constructor_count;
+			size_t constructor_arg_count = 0;
+			size_t constructor_string_size = 0;
+			for (size_t i = 0; i < constructor_count; ++i)
 			{
-				// Copy context from stack
-				ctx = (aason_context*)alloc;
-				memcpy(ctx, &temp_ctx, sizeof(aason_context));
-				alloc += context_size;
+				const size_t name_len = strlen(desc->constructors[i]->name);
+				constructor_arg_count += desc->constructors[i]->count;
+				constructor_string_size += name_len + 1; // Add null terminator
+			}
+			const size_t constructor_size = sizeof(aason_constructor_desc) * constructor_count;
+			const size_t constructor_arg_size = sizeof(aason_arg) * constructor_arg_count;
 
-				// Element array
-				ctx->elements = (aason_element*)alloc;
-				alloc += element_size;
+			if (aason_validate(&temp_ctx, &tokens))
+			{
+				// Calculate the amount of memory required for parsing
+				const size_t context_size	= aason_align_size(sizeof(aason_context));
+				const size_t element_size	= aason_align_size(sizeof(aason_element) * temp_ctx.element_count);
+				const size_t stack_size		= aason_align_size(sizeof(aason_stack_entry) * temp_ctx.max_stack_depth);
+				const size_t file_size		= aason_align_size(sizeof(aason_file) * files.count);
+				const size_t packed_size	= context_size + element_size + stack_size + file_size;
 
-				// Stack
-				ctx->stack = (aason_stack_entry*)alloc;
-				ctx->stack[0] = (aason_stack_entry){};
-				alloc += stack_size;
-
-				// File array
-				ctx->file_count = files.count;
-				ctx->files = (aason_file*)alloc;
-
-				for (uint32_t i = 0; i < files.count; ++i)
-					ctx->files[i] = files.files[i];
-
-				if (aason_finalise(ctx, &tokens))
+				// Allocate all parsing memory in one go
+				uint8_t* alloc = (uint8_t*)aason_alloc(&temp_ctx.allocator, packed_size);
+				if (alloc)
 				{
-					ctx->stack_depth = 0;
-					ctx->locale = aason_new_locale();
-				}
-				else
-				{
-					// Free context in case of error
-					aason_free(&ctx->allocator, alloc);
-					ctx = nullptr;
+					// Copy context from stack
+					ctx = (aason_context*)alloc;
+					memcpy(ctx, &temp_ctx, sizeof(aason_context));
+					alloc += context_size;
+
+					// Element array
+					ctx->elements = (aason_element*)alloc;
+					alloc += element_size;
+
+					// Stack
+					ctx->stack = (aason_stack_entry*)alloc;
+					ctx->stack[0] = (aason_stack_entry){};
+					alloc += stack_size;
+
+					// File array
+					ctx->file_count = files.count;
+					ctx->files = (aason_file*)alloc;
+
+					for (uint32_t i = 0; i < files.count; ++i)
+						ctx->files[i] = files.files[i];
+
+					if (aason_finalise(ctx, &tokens))
+					{
+						ctx->stack_depth = 0;
+						ctx->locale = aason_new_locale();
+					}
+					else
+					{
+						// Free context in case of error
+						aason_free(&ctx->allocator, alloc);
+						ctx = nullptr;
+					}
 				}
 			}
-		}
 
-		// Free scratch arrays
-		aason_free(&scratch, files.files);
-		aason_free(&scratch, tokens.tokens);
+			// Free scratch arrays
+			aason_free(&scratch, files.files);
+			aason_free(&scratch, tokens.tokens);
+		}
 	}
 
 	scratch.pop(scratch.self, frame);
@@ -462,7 +468,7 @@ bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags fla
 	{
 		if (element->array_value.count > max_size)
 		{
-			aason_read_error(ctx, aason_error_buffer_too_small, element->line, element->column,
+			aason_read_error(ctx, aason_error_array_too_large, element->key_file_index, element->line, element->column,
 				"Array '{s}' size is {u32} but max size is {i64}",
 				key, element->array_value.count, max_size
 			);
@@ -578,7 +584,7 @@ bool aason_read_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_
 		}
 		else
 		{
-			aason_read_error(ctx, aason_error_buffer_too_small, element->line, element->column,
+			aason_read_error(ctx, aason_error_buffer_too_small, element->value_file_index, element->line, element->column,
 				"String element of length '{u32}' is too large for fixed sized buffer size of '{i64}'",
 				len, buffer_size
 			);
@@ -611,7 +617,7 @@ bool aason_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min
 	{
 		if (element->int_value < min || element->int_value > max)
 		{
-			aason_read_error(ctx, aason_error_buffer_too_small, element->line, element->column,
+			aason_read_error(ctx, aason_error_invalid_range, element->value_file_index, element->line, element->column,
 				"Int out of range ({i64} to {i64})",
 				min, max
 			);
@@ -678,7 +684,7 @@ bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** stri
 			}
 		}
 
-		aason_read_error(ctx, aason_error_invalid_enum, element->line, element->column,
+		aason_read_error(ctx, aason_error_invalid_enum, element->value_file_index, element->line, element->column,
 			"Invalid enum value '{s}' in array", enum_value
 		);
 	}
@@ -764,7 +770,7 @@ bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flag
 		}
 		else
 		{
-			aason_read_error(ctx, aason_error_buffer_too_small, element->line, element->column,
+			aason_read_error(ctx, aason_error_buffer_too_small, element->value_file_index, element->line, element->column,
 				"String element of length '{u32}' is too large for fixed sized buffer size of '{i64}'",
 				len, buffer_size
 			);
@@ -797,7 +803,7 @@ bool aason_read_object_int_ranged(aason_context* ctx, const char* key, aason_fla
 	{
 		if (element->int_value < min || element->int_value > max)
 		{
-			aason_read_error(ctx, aason_error_buffer_too_small, element->line, element->column,
+			aason_read_error(ctx, aason_error_invalid_range, element->value_file_index, element->line, element->column,
 				"Int element '{s}' out of range ({i64} to {i64})",
 				key, min, max
 			);
@@ -864,7 +870,7 @@ bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags fla
 			}
 		}
 
-		aason_read_error(ctx, aason_error_invalid_enum, element->line, element->column,
+		aason_read_error(ctx, aason_error_invalid_enum, element->value_file_index, element->line, element->column,
 			"Invalid enum value '{s}' found in element '{s}'", enum_value, key
 		);
 	}
