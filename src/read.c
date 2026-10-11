@@ -190,6 +190,22 @@ static bool aason_read_enter_object_common(aason_context* ctx, const aason_eleme
 	return false;
 }
 
+static void aason_read_leave_common(aason_context* ctx, aason_type type)
+{
+	aason_assert(ctx);
+	aason_assert(type == aason_type_array || type == aason_type_object);
+	aason_assert(ctx->stack_depth > 0);
+	aason_assert(ctx->stack_depth < ctx->max_stack_depth);
+
+	const uint32_t element_index = ctx->stack[ctx->stack_depth].element_index;
+	aason_assert(element_index < ctx->element_count);
+
+	const aason_element* element = &ctx->elements[element_index];
+	aason_assert(element->type == type);
+
+	--ctx->stack_depth;
+}
+
 static bool aason_read_str_common(aason_context* ctx, const aason_element* element, const char** value, int64_t* len)
 {
 	aason_assert(value);
@@ -390,57 +406,6 @@ static bool aason_read_constructor_common(aason_context* ctx, const aason_elemen
 	return false;
 }
 
-bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags flags, int64_t* size, int64_t max_size)
-{
-	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_array);
-	if (element)
-	{
-		if (element->array_value.count > max_size)
-		{
-			aason_read_error(ctx, aason_error_array_too_large, element,
-				"Array '%s' size of %" PRIu32 " exceeds maximum of %" PRId64,
-				key, element->array_value.count, max_size
-			);
-
-			return false;
-		}
-
-		const uint32_t stack_depth = ++ctx->stack_depth;
-		aason_assert(stack_depth < ctx->max_stack_depth);
-
-		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
-		ctx->stack[stack_depth].array_index = 0;
-
-		if (size)
-			*size = element->array_value.count;
-
-		return true;
-	}
-
-	return false;
-}
-
-static void aason_read_leave_common(aason_context* ctx, aason_type type)
-{
-	aason_assert(ctx);
-	aason_assert(type == aason_type_array || type == aason_type_object);
-	aason_assert(ctx->stack_depth > 0);
-	aason_assert(ctx->stack_depth < ctx->max_stack_depth);
-
-	const uint32_t element_index = ctx->stack[ctx->stack_depth].element_index;
-	aason_assert(element_index < ctx->element_count);
-
-	const aason_element* element = &ctx->elements[element_index];
-	aason_assert(element->type == type);
-
-	--ctx->stack_depth;
-}
-
-void aason_read_array_leave(aason_context* ctx)
-{
-	aason_read_leave_common(ctx, aason_type_array);
-}
-
 bool aason_read_array_enter_object(aason_context* ctx)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_object);
@@ -495,15 +460,40 @@ bool aason_read_array_constructor(aason_context* ctx, void* value, const char* t
 	return aason_read_constructor_common(ctx, element, value, type);
 }
 
-bool aason_read_object_enter(aason_context* ctx, const char* key, aason_flags flags)
+bool aason_read_object_enter_array(aason_context* ctx, const char* key, aason_flags flags, int64_t* size, int64_t max_size)
+{
+	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_array);
+	if (element)
+	{
+		if (element->array_value.count > max_size)
+		{
+			aason_read_error(ctx, aason_error_array_too_large, element,
+				"Array '%s' size of %" PRIu32 " exceeds maximum of %" PRId64,
+				key, element->array_value.count, max_size
+			);
+
+			return false;
+		}
+
+		const uint32_t stack_depth = ++ctx->stack_depth;
+		aason_assert(stack_depth < ctx->max_stack_depth);
+
+		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
+		ctx->stack[stack_depth].array_index = 0;
+
+		if (size)
+			*size = element->array_value.count;
+
+		return true;
+	}
+
+	return false;
+}
+
+bool aason_read_object_enter_object(aason_context* ctx, const char* key, aason_flags flags)
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_object);
 	return aason_read_enter_object_common(ctx, element);
-}
-
-void aason_read_object_leave(aason_context* ctx)
-{
-	aason_read_leave_common(ctx, aason_type_object);
 }
 
 bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, int64_t* len)
@@ -552,4 +542,14 @@ bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_fl
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_constructor);
 	return aason_read_constructor_common(ctx, element, value, type);
+}
+
+void aason_read_leave_array(aason_context* ctx)
+{
+	aason_read_leave_common(ctx, aason_type_array);
+}
+
+void aason_read_leave_object(aason_context* ctx)
+{
+	aason_read_leave_common(ctx, aason_type_object);
 }

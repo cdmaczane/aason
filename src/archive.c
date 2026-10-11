@@ -1,7 +1,7 @@
 bool aason_archive_array_enter(aason_context* ctx, const char* key, int64_t* size)
 {
 	if (ctx->reading)
-		return aason_read_array_enter(ctx, key, aason_optional, size, INT64_MAX);
+		return aason_read_object_enter_array(ctx, key, aason_optional, size, INT64_MAX);
 
 	aason_write_array_enter(ctx, key);
 	return true;
@@ -10,7 +10,7 @@ bool aason_archive_array_enter(aason_context* ctx, const char* key, int64_t* siz
 void aason_archive_array_leave(aason_context* ctx)
 {
 	if (ctx->reading)
-		aason_read_array_leave(ctx);
+		aason_read_leave_array(ctx);
 	else
 		aason_write_array_leave(ctx);
 }
@@ -23,14 +23,6 @@ bool aason_archive_array_object_enter(aason_context* ctx)
 	aason_write_array_object_enter(ctx);
 	return true;
 }
-
-//void aason_archive_array_object_leave(aason_context* ctx)
-//{
-//	if (ctx->reading)
-//		aason_read_array_leave_object(ctx);
-//	else
-//		aason_archive_array_object_leave(ctx);
-//}
 
 void aason_archive_array_str(aason_context* ctx, char** value)
 {
@@ -83,7 +75,7 @@ void aason_archive_array_enum(aason_context* ctx, int32_t* value, const char** s
 bool aason_archive_object_enter(aason_context* ctx, const char* key)
 {
 	if (ctx->reading)
-		return aason_read_object_enter(ctx, key, aason_optional);
+		return aason_read_object_enter_object(ctx, key, aason_optional);
 
 	aason_write_object_enter(ctx, key);
 	return true;
@@ -92,7 +84,7 @@ bool aason_archive_object_enter(aason_context* ctx, const char* key)
 void aason_archive_object_leave(aason_context* ctx)
 {
 	if (ctx->reading)
-		aason_read_object_leave(ctx);
+		aason_read_leave_object(ctx);
 	else
 		aason_write_object_leave(ctx);
 }

@@ -152,8 +152,6 @@ bool aason_writing(const aason_context* ctx);
 
 void aason_error(aason_context* ctx, aason_error_type type, const char* format, ...);
 
-bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags flags, int64_t* size, int64_t max_size);
-void aason_read_array_leave(aason_context* ctx);
 bool aason_read_array_enter_object(aason_context* ctx);
 bool aason_read_array_str(aason_context* ctx, const char** value, int64_t* len);
 bool aason_read_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_size, bool truncate);
@@ -163,8 +161,8 @@ bool aason_read_array_bool(aason_context* ctx, bool* value);
 bool aason_read_array_float(aason_context* ctx, float* value);
 bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** strings, int32_t count);
 bool aason_read_array_constructor(aason_context* ctx, void* value, const char* type);
-bool aason_read_object_enter(aason_context* ctx, const char* key, aason_flags flags);
-void aason_read_object_leave(aason_context* ctx);
+bool aason_read_object_enter_array(aason_context* ctx, const char* key, aason_flags flags, int64_t* size, int64_t max_size);
+bool aason_read_object_enter_object(aason_context* ctx, const char* key, aason_flags flags);
 bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, int64_t* len);
 bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flags flags, char* value, int64_t buffer_size, bool truncate);
 bool aason_read_object_int(aason_context* ctx, const char* key, aason_flags flags, int64_t* value);
@@ -173,6 +171,8 @@ bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags fla
 bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value);
 bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags flags, int32_t* value, const char** strings, int32_t count);
 bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_flags flags, void* value, const char* type);
+void aason_read_leave_array(aason_context* ctx);
+void aason_read_leave_object(aason_context* ctx);
 
 void aason_write_array_enter(aason_context* ctx, const char* key);
 void aason_write_array_leave(aason_context* ctx);
