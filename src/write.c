@@ -26,7 +26,6 @@ static void aason_write_flush(aason_context* ctx)
 	if (ctx->committed)
 	{
 		ctx->write_interface.write(ctx->write_interface.self, ctx->stream, ctx->buffer, ctx->committed);
-		//ctx->write_str(ctx->user_data, ctx->buffer, ctx->offset);
 		ctx->committed = 0;
 	}
 }
@@ -35,7 +34,6 @@ static void aason_write_str(aason_context* ctx, const char* str, size_t length)
 {
 	aason_write_flush(ctx);
 	ctx->write_interface.write(ctx->write_interface.self, ctx->stream, str, length);
-	//ctx->write_str(ctx->user_data, str, size);
 }
 
 static char* aason_write_reserve(aason_context* ctx, size_t size)
@@ -146,43 +144,7 @@ aason_context* aason_write(const aason_write_desc* desc)
 	return nullptr;
 }
 
-void aason_write_array_enter(aason_context* ctx, const char* key)
-{
-	char* out = aason_write_add_object_element(ctx, key, 0, 1);
-	*out++ = '[';
-	aason_write_commit(ctx, out);
-
-	++ctx->stack_depth;
-	ctx->first = true;
-}
-
-void aason_write_array_leave(aason_context* ctx)
-{
-	aason_assert(ctx);
-	aason_assert(ctx->stack_depth > 0);
-
-	const uint32_t stack_depth = --ctx->stack_depth;
-
-	if (ctx->first)
-	{
-		char* out = aason_write_reserve(ctx, 1);
-		*out++ = ']';
-		aason_write_commit(ctx, out);
-	}
-	else
-	{
-		char* out = aason_write_reserve(ctx, stack_depth + 2);
-		*out++ = '\n';
-		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
-			*out++ = '\t';
-		*out++ = ']';
-		aason_write_commit(ctx, out);
-	}
-
-	ctx->first = false;
-}
-
-void aason_write_array_object_enter(aason_context* ctx)
+void aason_write_array_enter_object(aason_context* ctx)
 {
 	char* out = aason_write_add_array_element(ctx, 0, 1);
 	*out++ = '{';
@@ -194,7 +156,7 @@ void aason_write_array_object_enter(aason_context* ctx)
 
 void aason_write_array_object_leave(aason_context* ctx)
 {
-	aason_write_object_leave(ctx);
+	aason_write_leave_object(ctx);
 }
 
 void aason_write_array_str(aason_context* ctx, const char* value)
@@ -250,7 +212,17 @@ void aason_write_array_enum(aason_context* ctx, int32_t value, const char** stri
 	aason_write_commit(ctx, out + len);
 }
 
-void aason_write_object_enter(aason_context* ctx, const char* key)
+void aason_write_object_enter_array(aason_context* ctx, const char* key)
+{
+	char* out = aason_write_add_object_element(ctx, key, 0, 1);
+	*out++ = '[';
+	aason_write_commit(ctx, out);
+
+	++ctx->stack_depth;
+	ctx->first = true;
+}
+
+void aason_write_object_enter_object(aason_context* ctx, const char* key)
 {
 	char* out = aason_write_add_object_element(ctx, key, 0, 1);
 	*out++ = '{';
@@ -258,34 +230,6 @@ void aason_write_object_enter(aason_context* ctx, const char* key)
 
 	++ctx->stack_depth;
 	ctx->first = true;
-}
-
-void aason_write_object_leave(aason_context* ctx)
-{
-	aason_assert(ctx);
-	aason_assert(ctx->stack_depth > 0);
-
-	const uint32_t stack_depth = --ctx->stack_depth;
-
-	if (ctx->first)
-	{
-		char* out = aason_write_reserve(ctx, 1);
-		*out++ = '}';
-		aason_write_commit(ctx, out);
-	}
-	else
-	{
-		const size_t len = stack_depth + 2;
-
-		char* out = aason_write_reserve(ctx, len);
-		*out++ = '\n';
-		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
-			*out++ = '\t';
-		*out++ = '}';
-		aason_write_commit(ctx, out);
-	}
-
-	ctx->first = false;
 }
 
 void aason_write_object_str(aason_context* ctx, const char* key, const char* value)
@@ -339,4 +283,58 @@ void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value,
 	char* out = aason_write_add_object_element(ctx, key, len, 0);
 	memcpy(out, strings[value], len);
 	aason_write_commit(ctx, out + len);
+}
+
+void aason_write_leave_array(aason_context* ctx)
+{
+	aason_assert(ctx);
+	aason_assert(ctx->stack_depth > 0);
+
+	const uint32_t stack_depth = --ctx->stack_depth;
+
+	if (ctx->first)
+	{
+		char* out = aason_write_reserve(ctx, 1);
+		*out++ = ']';
+		aason_write_commit(ctx, out);
+	}
+	else
+	{
+		char* out = aason_write_reserve(ctx, stack_depth + 2);
+		*out++ = '\n';
+		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
+			*out++ = '\t';
+		*out++ = ']';
+		aason_write_commit(ctx, out);
+	}
+
+	ctx->first = false;
+}
+
+void aason_write_leave_object(aason_context* ctx)
+{
+	aason_assert(ctx);
+	aason_assert(ctx->stack_depth > 0);
+
+	const uint32_t stack_depth = --ctx->stack_depth;
+
+	if (ctx->first)
+	{
+		char* out = aason_write_reserve(ctx, 1);
+		*out++ = '}';
+		aason_write_commit(ctx, out);
+	}
+	else
+	{
+		const size_t len = stack_depth + 2;
+
+		char* out = aason_write_reserve(ctx, len);
+		*out++ = '\n';
+		for (uint32_t i = 0; i < ctx->stack_depth; ++i)
+			*out++ = '\t';
+		*out++ = '}';
+		aason_write_commit(ctx, out);
+	}
+
+	ctx->first = false;
 }

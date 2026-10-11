@@ -174,21 +174,21 @@ bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_fl
 void aason_read_leave_array(aason_context* ctx);
 void aason_read_leave_object(aason_context* ctx);
 
-void aason_write_array_enter(aason_context* ctx, const char* key);
-void aason_write_array_leave(aason_context* ctx);
-void aason_write_array_object_enter(aason_context* ctx);
+void aason_write_array_enter_object(aason_context* ctx);
 void aason_write_array_str(aason_context* ctx, const char* value);
 void aason_write_array_int(aason_context* ctx, int64_t value);
 void aason_write_array_bool(aason_context* ctx, bool value);
 void aason_write_array_float(aason_context* ctx, float value);
 void aason_write_array_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count);
-void aason_write_object_enter(aason_context* ctx, const char* key);
-void aason_write_object_leave(aason_context* ctx);
+void aason_write_object_enter_array(aason_context* ctx, const char* key);
+void aason_write_object_enter_object(aason_context* ctx, const char* key);
 void aason_write_object_str(aason_context* ctx, const char* key, const char* value);
 void aason_write_object_int(aason_context* ctx, const char* key, int64_t value);
 void aason_write_object_bool(aason_context* ctx, const char* key, bool value);
 void aason_write_object_float(aason_context* ctx, const char* key, float value);
 void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value, const char** strings, int32_t count);
+void aason_write_leave_array(aason_context* ctx);
+void aason_write_leave_object(aason_context* ctx);
 
 bool aason_archive_array_enter(aason_context* ctx, const char* key, int64_t* size);
 void aason_archive_array_leave(aason_context* ctx);
