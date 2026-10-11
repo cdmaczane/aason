@@ -206,7 +206,7 @@ static void aason_read_leave_common(aason_context* ctx, aason_type type)
 	--ctx->stack_depth;
 }
 
-static bool aason_read_str_common(aason_context* ctx, const aason_element* element, const char** value, int64_t* len)
+static bool aason_read_str_common(aason_context* ctx, const aason_element* element, const char** value, size_t* len)
 {
 	aason_assert(value);
 
@@ -225,7 +225,7 @@ static bool aason_read_str_common(aason_context* ctx, const aason_element* eleme
 	return false;
 }
 
-static bool aason_read_fixed_str_common(aason_context* ctx, const aason_element* element, char* value, int64_t buffer_size, bool truncate)
+static bool aason_read_fixed_str_common(aason_context* ctx, const aason_element* element, char* value, size_t buffer_size, bool truncate)
 {
 	aason_assert(value);
 	aason_assert(buffer_size > 0);
@@ -412,13 +412,13 @@ bool aason_read_array_enter_object(aason_context* ctx)
 	return aason_read_enter_object_common(ctx, element);
 }
 
-bool aason_read_array_str(aason_context* ctx, const char** value, int64_t* len)
+bool aason_read_array_str(aason_context* ctx, const char** value, size_t* len)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_str);
 	return aason_read_str_common(ctx, element, value, len);
 }
 
-bool aason_read_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_size, bool truncate)
+bool aason_read_array_fixed_str(aason_context* ctx, char* value, size_t buffer_size, bool truncate)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_str);
 	return aason_read_fixed_str_common(ctx, element, value, buffer_size, truncate);
@@ -460,7 +460,7 @@ bool aason_read_array_constructor(aason_context* ctx, void* value, const char* t
 	return aason_read_constructor_common(ctx, element, value, type);
 }
 
-bool aason_read_object_enter_array(aason_context* ctx, const char* key, aason_flags flags, int64_t* size, int64_t max_size)
+bool aason_read_object_enter_array(aason_context* ctx, const char* key, aason_flags flags, size_t* size, size_t max_size)
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_array);
 	if (element)
@@ -496,13 +496,13 @@ bool aason_read_object_enter_object(aason_context* ctx, const char* key, aason_f
 	return aason_read_enter_object_common(ctx, element);
 }
 
-bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, int64_t* len)
+bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, size_t* len)
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_str);
 	return aason_read_str_common(ctx, element, value, len);
 }
 
-bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flags flags, char* value, int64_t buffer_size, bool truncate)
+bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flags flags, char* value, size_t buffer_size, bool truncate)
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_str);
 	return aason_read_fixed_str_common(ctx, element, value, buffer_size, truncate);

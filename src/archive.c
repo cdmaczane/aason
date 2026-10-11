@@ -15,7 +15,7 @@ void aason_archive_array_str(aason_context* ctx, char** value)
 		aason_write_array_str(ctx, *value);
 }
 
-void aason_archive_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_size, bool truncate)
+void aason_archive_array_fixed_str(aason_context* ctx, char* value, size_t buffer_size, bool truncate)
 {
 	if (ctx->reading)
 		aason_read_array_fixed_str(ctx, value, buffer_size, truncate);
@@ -55,10 +55,10 @@ void aason_archive_array_enum(aason_context* ctx, int32_t* value, const char** s
 		aason_write_array_enum(ctx, *value, strings, count);
 }
 
-bool aason_archive_object_enter_array(aason_context* ctx, const char* key, int64_t* size)
+bool aason_archive_object_enter_array(aason_context* ctx, const char* key, size_t* size)
 {
 	if (ctx->reading)
-		return aason_read_object_enter_array(ctx, key, aason_optional, size, INT64_MAX);
+		return aason_read_object_enter_array(ctx, key, aason_optional, size, UINT32_MAX);
 
 	aason_write_object_enter_array(ctx, key);
 	return true;
@@ -94,7 +94,7 @@ bool aason_archive_object_str(aason_context* ctx, const char* key, char** value,
 }
 
 // TODO: Handle length errors as runtime errors, not using asserts
-bool aason_archive_object_fixed_str(aason_context* ctx, const char* key, char* value, const char* default_value, int64_t buffer_size, bool truncate)
+bool aason_archive_object_fixed_str(aason_context* ctx, const char* key, char* value, const char* default_value, size_t buffer_size, bool truncate)
 {
 	aason_assert(default_value);
 	aason_assert(strlen(default_value) < buffer_size);
@@ -195,7 +195,7 @@ void aason_archive_leave_array(aason_context* ctx)
 		aason_write_leave_array(ctx);
 }
 
-void aason_archive_object_leave_object(aason_context* ctx)
+void aason_archive_leave_object(aason_context* ctx)
 {
 	if (ctx->reading)
 		aason_read_leave_object(ctx);
