@@ -190,23 +190,23 @@ void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value,
 void aason_write_leave_array(aason_context* ctx);
 void aason_write_leave_object(aason_context* ctx);
 
-bool aason_archive_array_enter(aason_context* ctx, const char* key, int64_t* size);
-void aason_archive_array_leave(aason_context* ctx);
-bool aason_archive_array_object_enter(aason_context* ctx);
+bool aason_archive_array_enter_object(aason_context* ctx);
 void aason_archive_array_str(aason_context* ctx, char** value);
 void aason_archive_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_size, bool truncate);
 void aason_archive_array_int(aason_context* ctx, int64_t* value);
 void aason_archive_array_bool(aason_context* ctx, bool* value);
 void aason_archive_array_float(aason_context* ctx, float* value);
 void aason_archive_array_enum(aason_context* ctx, int32_t* value, const char** strings, int32_t count);
-bool aason_archive_object_enter(aason_context* ctx, const char* key);
-void aason_archive_object_leave(aason_context* ctx);
+bool aason_archive_object_enter_array(aason_context* ctx, const char* key, int64_t* size);
+bool aason_archive_object_enter_object(aason_context* ctx, const char* key);
 bool aason_archive_object_str(aason_context* ctx, const char* key, char** value, const char* default_value);
 bool aason_archive_object_fixed_str(aason_context* ctx, const char* key, char* value, const char* default_value, int64_t buffer_size, bool truncate);
 bool aason_archive_object_int(aason_context* ctx, const char* key, int64_t* value, int64_t default_value);
 bool aason_archive_object_bool(aason_context* ctx, const char* key, bool* value, bool default_value);
 bool aason_archive_object_float(aason_context* ctx, const char* key, float* value, float default_value);
 bool aason_archive_object_enum(aason_context* ctx, const char* key, int32_t* value, int32_t default_value, const char** strings, int32_t count);
+void aason_archive_leave_array(aason_context* ctx);
+void aason_archive_object_leave_object(aason_context* ctx);
 
 #ifdef __cplusplus
 }
