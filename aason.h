@@ -163,6 +163,7 @@ bool aason_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min
 bool aason_read_array_bool(aason_context* ctx, bool* value);
 bool aason_read_array_float(aason_context* ctx, float* value);
 bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** strings, int32_t count);
+bool aason_read_array_constructor(aason_context* ctx, void* value, const char* type);
 bool aason_read_object_enter(aason_context* ctx, const char* key, aason_flags flags);
 void aason_read_object_leave(aason_context* ctx);
 bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, int64_t* len);
