@@ -155,7 +155,6 @@ void aason_error(aason_context* ctx, aason_error_type type, const char* format, 
 bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags flags, int64_t* size, int64_t max_size);
 void aason_read_array_leave(aason_context* ctx);
 bool aason_read_array_enter_object(aason_context* ctx);
-void aason_read_array_leave_object(aason_context* ctx);
 bool aason_read_array_str(aason_context* ctx, const char** value, int64_t* len);
 bool aason_read_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_size, bool truncate);
 bool aason_read_array_int(aason_context* ctx, int64_t* value);
@@ -178,7 +177,6 @@ bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_fl
 void aason_write_array_enter(aason_context* ctx, const char* key);
 void aason_write_array_leave(aason_context* ctx);
 void aason_write_array_object_enter(aason_context* ctx);
-void aason_write_array_object_leave(aason_context* ctx);
 void aason_write_array_str(aason_context* ctx, const char* value);
 void aason_write_array_int(aason_context* ctx, int64_t value);
 void aason_write_array_bool(aason_context* ctx, bool value);
@@ -195,7 +193,6 @@ void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value,
 bool aason_archive_array_enter(aason_context* ctx, const char* key, int64_t* size);
 void aason_archive_array_leave(aason_context* ctx);
 bool aason_archive_array_object_enter(aason_context* ctx);
-void aason_archive_array_object_leave(aason_context* ctx);
 void aason_archive_array_str(aason_context* ctx, char** value);
 void aason_archive_array_fixed_str(aason_context* ctx, char* value, int64_t buffer_size, bool truncate);
 void aason_archive_array_int(aason_context* ctx, int64_t* value);

@@ -24,13 +24,13 @@ bool aason_archive_array_object_enter(aason_context* ctx)
 	return true;
 }
 
-void aason_archive_array_object_leave(aason_context* ctx)
-{
-	if (ctx->reading)
-		aason_read_array_leave_object(ctx);
-	else
-		aason_archive_array_object_leave(ctx);
-}
+//void aason_archive_array_object_leave(aason_context* ctx)
+//{
+//	if (ctx->reading)
+//		aason_read_array_leave_object(ctx);
+//	else
+//		aason_archive_array_object_leave(ctx);
+//}
 
 void aason_archive_array_str(aason_context* ctx, char** value)
 {

@@ -67,7 +67,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 	aason_assert(key);
 	aason_assert(*key);
 
-	const int64_t key_len = strlen(key);
+	const size_t key_len = strlen(key);
 
 	const uint32_t stack_depth = ctx->stack_depth;
 	aason_assert(stack_depth < ctx->max_stack_depth);
@@ -156,9 +156,11 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 		const aason_element* children = ctx->elements + array_element->array_value.first_child;
 		const aason_element* element = &children[array_index];
 
+		// Increment irrespective of whether an error was found
+		ctx->stack[stack_depth].array_index = array_index + 1;
+
 		if (element->type == type)
 		{
-			ctx->stack[stack_depth].array_index = array_index + 1;
 			return element;
 		}
 		else
@@ -171,6 +173,21 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 	}
 
 	return nullptr;
+}
+
+static bool aason_read_enter_object_common(aason_context* ctx, const aason_element* element)
+{
+	if (element)
+	{
+		const uint32_t stack_depth = ++ctx->stack_depth;
+		aason_assert(stack_depth < ctx->max_stack_depth);
+
+		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
+
+		return true;
+	}
+
+	return false;
 }
 
 static bool aason_read_str_common(aason_context* ctx, const aason_element* element, const char** value, int64_t* len)
@@ -218,7 +235,7 @@ static bool aason_read_fixed_str_common(aason_context* ctx, const aason_element*
 		else
 		{
 			aason_read_error(ctx, aason_error_buffer_too_small, element,
-				"String of length %" PRIu32 " exceeds fixed-sized buffer capacity of %" PRId64,
+				"String of length %" PRId64 " exceeds fixed-sized buffer capacity of %" PRId64,
 				len, buffer_size
 			);
 		}
@@ -243,6 +260,7 @@ static bool aason_read_int_common(aason_context* ctx, const aason_element* eleme
 static bool aason_read_int_ranged_common(aason_context* ctx, const aason_element* element, int64_t* value, int64_t min, int64_t max)
 {
 	aason_assert(value);
+	aason_assert(min <= max);
 
 	if (element)
 	{
@@ -402,9 +420,10 @@ bool aason_read_array_enter(aason_context* ctx, const char* key, aason_flags fla
 	return false;
 }
 
-void aason_read_array_leave(aason_context* ctx)
+static void aason_read_leave_common(aason_context* ctx, aason_type type)
 {
 	aason_assert(ctx);
+	aason_assert(type == aason_type_array || type == aason_type_object);
 	aason_assert(ctx->stack_depth > 0);
 	aason_assert(ctx->stack_depth < ctx->max_stack_depth);
 
@@ -412,41 +431,20 @@ void aason_read_array_leave(aason_context* ctx)
 	aason_assert(element_index < ctx->element_count);
 
 	const aason_element* element = &ctx->elements[element_index];
-	aason_assert(element->type == aason_type_array);
+	aason_assert(element->type == type);
 
 	--ctx->stack_depth;
+}
+
+void aason_read_array_leave(aason_context* ctx)
+{
+	aason_read_leave_common(ctx, aason_type_array);
 }
 
 bool aason_read_array_enter_object(aason_context* ctx)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_object);
-	if (element)
-	{
-		const uint32_t stack_depth = ++ctx->stack_depth;
-		aason_assert(stack_depth < ctx->max_stack_depth);
-
-		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
-		++ctx->stack[stack_depth].array_index;
-
-		return true;
-	}
-
-	return false;
-}
-
-void aason_read_array_leave_object(aason_context* ctx)
-{
-	aason_assert(ctx);
-	aason_assert(ctx->stack_depth > 0);
-	aason_assert(ctx->stack_depth < ctx->max_stack_depth);
-
-	const uint32_t element_index = ctx->stack[ctx->stack_depth].element_index;
-	aason_assert(element_index < ctx->element_count);
-
-	const aason_element* element = &ctx->elements[element_index];
-	aason_assert(element->type == aason_type_object);
-
-	--ctx->stack_depth;
+	return aason_read_enter_object_common(ctx, element);
 }
 
 bool aason_read_array_str(aason_context* ctx, const char** value, int64_t* len)
@@ -499,34 +497,13 @@ bool aason_read_array_constructor(aason_context* ctx, void* value, const char* t
 
 bool aason_read_object_enter(aason_context* ctx, const char* key, aason_flags flags)
 {
-	aason_assert(ctx->stack_depth + 1 < ctx->max_stack_depth);
-
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_object);
-	if (element)
-	{
-		const uint32_t stack_depth = ++ctx->stack_depth;
-		aason_assert(stack_depth < ctx->max_stack_depth);
-
-		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
-		return true;
-	}
-
-	return false;
+	return aason_read_enter_object_common(ctx, element);
 }
 
 void aason_read_object_leave(aason_context* ctx)
 {
-	aason_assert(ctx);
-	aason_assert(ctx->stack_depth > 0);
-	aason_assert(ctx->stack_depth < ctx->max_stack_depth);
-
-	const uint32_t element_index = ctx->stack[ctx->stack_depth].element_index;
-	aason_assert(element_index < ctx->element_count);
-
-	const aason_element* element = &ctx->elements[element_index];
-	aason_assert(element->type == aason_type_object);
-
-	--ctx->stack_depth;
+	aason_read_leave_common(ctx, aason_type_object);
 }
 
 bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, int64_t* len)
