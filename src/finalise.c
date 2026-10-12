@@ -224,11 +224,11 @@ static void aason_finalise_parse_value(aason_finaliser* finaliser, aason_token* 
 	}
 }
 
-static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* self, aason_element* element)
+static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_array;
 
-	const uint32_t array_count = self->count;
+	const uint32_t array_count = token->count;
 	element->array_value.count = array_count;
 	element->array_value.first_child = finaliser->element_index;
 
@@ -236,7 +236,7 @@ static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* 
 
 	for (uint32_t i = 0; i < array_count; ++i)
 	{
-		aason_token* token = aason_finalise_get_next_token(finaliser);
+		token = aason_finalise_get_next_token(finaliser);
 
 		children[i].key_file_index = token->file_index;
 		children[i].key_len = 0;
@@ -251,7 +251,7 @@ static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* 
 	aason_finalise_get_next_token(finaliser); // Skip leave array token
 }
 
-static aason_token* aason_finalise_init_key(aason_finaliser* finaliser, aason_element* element)
+static void aason_finalise_init_key(aason_finaliser* finaliser, aason_element* element)
 {
 	aason_token* token = aason_finalise_get_next_token(finaliser);
 	aason_finalise_get_next_token(finaliser); // Skip colon token
@@ -264,15 +264,13 @@ static aason_token* aason_finalise_init_key(aason_finaliser* finaliser, aason_el
 	element->key_file_index = token->file_index;
 	element->key_len = (uint32_t)(token->end - token->begin);
 	element->key_offset = (uint32_t)(token->begin - file_buffer);
-
-	return token;
 }
 
-static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* self, aason_element* element)
+static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_object;
 
-	const uint32_t field_count = self->count;
+	const uint32_t field_count = token->count;
 	element->object_value.count = field_count;
 	element->object_value.first_child = finaliser->element_index;
 
@@ -280,9 +278,9 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 
 	for (uint32_t i = 0; i < field_count; ++i)
 	{
-		aason_token* key = aason_finalise_init_key(finaliser, &children[i]);
-		aason_token* value = aason_finalise_get_next_token(finaliser);
-		aason_finalise_parse_value(finaliser, value, &children[i]);
+		aason_finalise_init_key(finaliser, &children[i]);
+		token = aason_finalise_get_next_token(finaliser);
+		aason_finalise_parse_value(finaliser, token, &children[i]);
 
 		if (i < field_count - 1)
 			aason_finalise_get_next_token(finaliser); // Skip comma token
@@ -291,18 +289,18 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 	aason_finalise_get_next_token(finaliser); // Skip leave object token
 }
 
-static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_token* self, aason_element* element)
+static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	aason_assert(self->constructor_index < finaliser->ctx->constructor_count);
+	aason_assert(token->constructor_index < finaliser->ctx->constructor_count);
 
 	element->type = aason_type_constructor;
-	element->constructor_index = self->constructor_index;
+	element->constructor_index = token->constructor_index;
 
-	const uint32_t arg_count = self->count;
+	const uint32_t arg_count = token->count;
 	element->constructor_value.count = arg_count;
 	element->constructor_value.first_child = finaliser->element_index;
 
-	aason_token* token = aason_finalise_get_next_token(finaliser); // Skip open paren
+	aason_finalise_get_next_token(finaliser); // Skip open paren
 
 	aason_element* children = aason_finalise_allocate_elements(finaliser, arg_count);
 
@@ -325,14 +323,12 @@ static bool aason_finalise(aason_context* ctx, aason_tokens* tokens)
 		.tokens	= tokens
 	};
 
-	ctx->files[0].return_index = 0;
-
 	if (!setjmp(finaliser.jmp_ctx))
 	{
 		aason_element* element = aason_finalise_allocate_elements(&finaliser, 1);
-		aason_token* key = aason_finalise_init_key(&finaliser, element);
-		aason_token* value = aason_finalise_get_next_token(&finaliser);
-		aason_finalise_parse_value(&finaliser, value, element);
+		aason_finalise_init_key(&finaliser, element);
+		aason_token* token = aason_finalise_get_next_token(&finaliser);
+		aason_finalise_parse_value(&finaliser, token, element);
 
 		aason_assert(finaliser.element_index == ctx->element_count);
 
