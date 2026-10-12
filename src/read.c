@@ -150,14 +150,14 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 	const aason_element* array_element = &ctx->elements[element_index];
 	aason_assert(array_element->type == aason_type_array);
 
-	const uint32_t array_index = ctx->stack[stack_depth].array_index;
+	const uint32_t array_index = ctx->stack[stack_depth].child_index;
 	if (array_index < array_element->array_value.count)
 	{
 		const aason_element* children = ctx->elements + array_element->array_value.first_child;
 		const aason_element* element = &children[array_index];
 
 		// Increment irrespective of whether an error was found
-		ctx->stack[stack_depth].array_index = array_index + 1;
+		ctx->stack[stack_depth].child_index = array_index + 1;
 
 		if (element->type == type)
 		{
@@ -479,7 +479,7 @@ bool aason_read_object_enter_array(aason_context* ctx, const char* key, aason_fl
 		aason_assert(stack_depth < ctx->max_stack_depth);
 
 		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
-		ctx->stack[stack_depth].array_index = 0;
+		ctx->stack[stack_depth].child_index = 0;
 
 		if (size)
 			*size = element->array_value.count;

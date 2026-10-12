@@ -32,19 +32,6 @@ static char* aason_to_string_bool(char* out, bool value)
 	return out;
 }
 
-static char* aason_to_string_hash(char* out, uint32_t value)
-{
-#if defined(_WIN32)
-	const int result = _snprintf_s(out, aason_hash_len, _TRUNCATE, "%" PRIu32, value);
-#else
-	const int result = snprintf(out, aason_hash_len, "%" PRIu32, value);
-#endif
-	aason_assert(result >= 0);
-	aason_assert(result < aason_hash_len);
-
-	return out + result;
-}
-
 static char* aason_to_string_float(aason_locale locale, char* out, float value)
 {
 #if AASON_HANDLE_LOCALE && defined(_WIN32)

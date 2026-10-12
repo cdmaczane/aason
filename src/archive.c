@@ -73,6 +73,7 @@ bool aason_archive_object_enter_object(aason_context* ctx, const char* key)
 	return true;
 }
 
+// TODO: This function probably needs to copy the string on reading
 bool aason_archive_object_str(aason_context* ctx, const char* key, char** value, const char* default_value)
 {
 	aason_assert(default_value);

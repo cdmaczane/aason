@@ -63,7 +63,6 @@ typedef struct
 	uint16_t			count;
 	char*				begin;
 	char*				end;
-	//const char*			file; // TODO
 	uint32_t			line;
 	uint32_t			column;
 } aason_token;

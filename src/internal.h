@@ -86,7 +86,7 @@ static_assert(sizeof(aason_element) == 32);
 typedef struct
 {
 	uint32_t element_index;
-	uint32_t array_index;
+	uint32_t child_index;
 } aason_stack_entry;
 
 typedef struct
@@ -151,13 +151,11 @@ struct aason_context
 
 static char*	aason_to_string_int(char* out, int64_t value);
 static char*	aason_to_string_bool(char* out, bool value);
-static char*	aason_to_string_hash(char* out, uint32_t value);
 static char*	aason_to_string_float(aason_locale locale, char* out, float value);
 
 static bool		aason_from_string_bin(const char* begin, const char* end, int64_t* value);
 static bool		aason_from_string_dec(const char* begin, const char* end, int64_t* value);
 static bool		aason_from_string_hex(const char* begin, const char* end, int64_t* value);
-static bool		aason_from_string_hash(const char* begin, const char* end, uint32_t* value);
 static bool		aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
 
 static void		aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args);

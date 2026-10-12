@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -140,7 +141,7 @@ typedef struct
 	const aason_error_interface*	error_interface;
 	const aason_write_interface*	write_interface;
 	const aason_allocator*			allocator;
-	const aason_constructor_desc*	constructors;
+	const aason_constructor_desc**	constructors;
 	size_t							constructor_count;
 } aason_write_desc;
 
