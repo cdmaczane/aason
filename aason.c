@@ -67,6 +67,53 @@ extern "C" {
 #include "src/to_string.c"
 #include "src/from_string.c"
 
+static aason_token* aason_get_next_token(aason_token_state* state)
+{
+	aason_token* token;
+	for (;;)
+	{
+		aason_assert(state->token_index < state->tokens->count);
+
+		token = &state->tokens->tokens[state->token_index++];
+		if (token->type == aason_token_type_jump)
+		{
+			const uint16_t target_file_index = token->count;
+			aason_assert(target_file_index < state->ctx->file_count);
+
+			// Recursion is disallowed so we can store return position in each file struct
+			aason_file* target_file = &state->ctx->files[target_file_index];
+			target_file->return_file = state->file_index;
+			target_file->return_index = state->token_index;
+
+			// Update current position to point to target file
+			state->file_index = target_file_index;
+			state->token_index = target_file->token_index;
+		}
+		else if (token->type == aason_token_type_eof)
+		{
+			const uint16_t current_file_index = state->file_index;
+			aason_assert(current_file_index < state->ctx->file_count);
+
+			if (current_file_index == 0)
+				break; // End of root file
+
+			const aason_file* current_file = &state->ctx->files[current_file_index];
+			aason_assert(current_file->return_file < state->ctx->file_count);
+			aason_assert(current_file->return_index < state->tokens->count);
+
+			// Restore previous position (note: token index was incrementing before jump)
+			state->file_index = current_file->return_file;
+			state->token_index = current_file->return_index;
+		}
+		else
+		{
+			break;
+		}
+	}
+
+	return token;
+}
+
 static void aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args)
 {
 	if (ctx->format)

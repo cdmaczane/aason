@@ -1,28 +1,4 @@
-typedef enum
-{
-	aason_token_type_error,
-	aason_token_type_eof,
-	aason_token_type_str,
-	aason_token_type_bin,
-	aason_token_type_dec,
-	aason_token_type_hex,
-	aason_token_type_true,
-	aason_token_type_false,
-	aason_token_type_comma,
-	aason_token_type_colon,
-	aason_token_type_float,
-	aason_token_type_identifier,
-	aason_token_type_constructor,
-	aason_token_type_open_paren,
-	aason_token_type_close_paren,
-	aason_token_type_enter_array,
-	aason_token_type_leave_array,
-	aason_token_type_enter_object,
-	aason_token_type_leave_object,
-	aason_token_type_jump,
-	aason_token_type_count
-} aason_token_type;
-
+// TODO: Move
 static const char* aason_token_type_strings[] = {
 	"",
 	"EOF",
@@ -46,27 +22,6 @@ static const char* aason_token_type_strings[] = {
 	"JMP"
 };
 static_assert(sizeof(aason_token_type_strings) / sizeof(const char*) == aason_token_type_count);
-
-enum
-{
-	aason_tokenise_char_error,
-	aason_tokenise_char_eof,
-	aason_tokenise_char_jump
-};
-
-// TODO: I think if we add a union we can remove some 16-bit limitations
-typedef struct
-{
-	uint16_t			type;
-	uint16_t			file_index;
-	uint16_t			constructor_index;
-	uint16_t			count;
-	char*				begin;
-	char*				end;
-	uint32_t			line;
-	uint32_t			column;
-} aason_token;
-static_assert(sizeof(aason_token) == 32);
 
 typedef struct
 {
@@ -458,13 +413,6 @@ static aason_token_type aason_tokenise_parse_identifier(aason_tokeniser* tokenis
 
 	//rgs_unreachable();
 }
-
-typedef struct
-{
-	aason_token*	tokens;
-	uint32_t		count;
-	uint32_t		capacity;
-} aason_tokens;
 
 static aason_token* aason_allocate_token(aason_allocator* scratch, aason_tokens* tokens)
 {

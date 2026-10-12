@@ -4,10 +4,16 @@
 
 enum
 {
-	aason_hash_len		= 9,	// Includes null terminator
 	aason_int_max_len	= 21,	// Includes null terminator
 	aason_bool_max_len	= 5,
 	aason_float_max_len	= 16	// Includes null terminator
+};
+
+enum
+{
+	aason_tokenise_char_error,
+	aason_tokenise_char_eof,
+	aason_tokenise_char_jump
 };
 
 // TODO: Add flags type that separates enum values using '|'
@@ -22,6 +28,60 @@ typedef enum
 	aason_type_object,
 	aason_type_constructor
 } aason_type;
+
+typedef enum
+{
+	aason_token_type_error,
+	aason_token_type_eof,
+	aason_token_type_str,
+	aason_token_type_bin,
+	aason_token_type_dec,
+	aason_token_type_hex,
+	aason_token_type_true,
+	aason_token_type_false,
+	aason_token_type_comma,
+	aason_token_type_colon,
+	aason_token_type_float,
+	aason_token_type_identifier,
+	aason_token_type_constructor,
+	aason_token_type_open_paren,
+	aason_token_type_close_paren,
+	aason_token_type_enter_array,
+	aason_token_type_leave_array,
+	aason_token_type_enter_object,
+	aason_token_type_leave_object,
+	aason_token_type_jump,
+	aason_token_type_count
+} aason_token_type;
+
+// TODO: I think if we add a union we can remove some 16-bit limitations
+typedef struct
+{
+	uint16_t			type;
+	uint16_t			file_index;
+	uint16_t			constructor_index;
+	uint16_t			count;
+	char*				begin;
+	char*				end;
+	uint32_t			line;
+	uint32_t			column;
+} aason_token;
+static_assert(sizeof(aason_token) == 32);
+
+typedef struct
+{
+	aason_token*	tokens;
+	uint32_t		count;
+	uint32_t		capacity;
+} aason_tokens;
+
+typedef struct
+{
+	aason_context*	ctx;
+	aason_tokens*	tokens;
+	uint16_t		file_index;
+	uint32_t		token_index;
+} aason_token_state;
 
 /*
 	TODO:
@@ -149,13 +209,15 @@ struct aason_context
 };
 //static_assert(sizeof(aason_context) == 64);
 
-static char*	aason_to_string_int(char* out, int64_t value);
-static char*	aason_to_string_bool(char* out, bool value);
-static char*	aason_to_string_float(aason_locale locale, char* out, float value);
+static char*		aason_to_string_int(char* out, int64_t value);
+static char*		aason_to_string_bool(char* out, bool value);
+static char*		aason_to_string_float(aason_locale locale, char* out, float value);
 
-static bool		aason_from_string_bin(const char* begin, const char* end, int64_t* value);
-static bool		aason_from_string_dec(const char* begin, const char* end, int64_t* value);
-static bool		aason_from_string_hex(const char* begin, const char* end, int64_t* value);
-static bool		aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
+static bool			aason_from_string_bin(const char* begin, const char* end, int64_t* value);
+static bool			aason_from_string_dec(const char* begin, const char* end, int64_t* value);
+static bool			aason_from_string_hex(const char* begin, const char* end, int64_t* value);
+static bool			aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
 
-static void		aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args);
+static void			aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args);
+
+static aason_token*	aason_get_next_token(aason_token_state* state);
