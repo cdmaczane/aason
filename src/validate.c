@@ -1,38 +1,35 @@
 typedef struct
 {
-	aason_context*	ctx;
-	aason_tokens*	tokens;
-	uint16_t		file_index;
-	uint32_t		line;
-	uint32_t		column;
-	uint32_t		current_token;
-	uint32_t		depth;
-	uint32_t		max_depth;
-	uint32_t		element_count;
-	jmp_buf			jmp_ctx;
+	aason_token_state	token_state;
+	uint32_t			line;
+	uint32_t			column;
+	uint32_t			depth;
+	uint32_t			max_depth;
+	uint32_t			element_count;
+	jmp_buf				jmp_ctx;
 } aason_validator;
 
 static void aason_validate_error(aason_validator* validator, aason_error_type error, const char* fmt, ...)
 {
 	char buffer[4096];
 
-	aason_assert(validator->file_index < validator->ctx->file_count);
-	aason_file* file = &validator->ctx->files[validator->file_index];
+	aason_assert(validator->token_state.file_index < validator->token_state.ctx->file_count);
+	aason_file* file = &validator->token_state.ctx->files[validator->token_state.file_index];
 
-	validator->ctx->error = error;
-	validator->ctx->error_file = file->buffer;
-	validator->ctx->error_line = validator->line;
-	validator->ctx->error_column = validator->column;
+	validator->token_state.ctx->error = error;
+	validator->token_state.ctx->error_file = file->buffer;
+	validator->token_state.ctx->error_line = validator->line;
+	validator->token_state.ctx->error_column = validator->column;
 
-	if (validator->ctx->error_interface.error)
+	if (validator->token_state.ctx->error_interface.error)
 	{
 		va_list args;
 		va_start(args, fmt);
-		aason_format_string(validator->ctx, buffer, sizeof(buffer), fmt, args);
+		aason_format_string(validator->token_state.ctx, buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
-		validator->ctx->error_interface.error(
-			validator->ctx->error_interface.user_data,
+		validator->token_state.ctx->error_interface.error(
+			validator->token_state.ctx->error_interface.user_data,
 			error,
 			file->buffer,
 			validator->line,
@@ -44,53 +41,10 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 	longjmp(validator->jmp_ctx, 1);
 }
 
-static aason_token_type aason_validate_get_next_token(aason_validator* validator, aason_token** out_token)
-{
-	// TODO: Check if this could occur from bad data and, if so, convert to an error
-	aason_assert(validator->current_token < validator->tokens->count);
-
-	aason_token* token = &validator->tokens->tokens[validator->current_token++];
-	while (token->type == aason_token_type_jump)
-	{
-		const uint16_t new_file_index = token->count;
-		aason_assert(new_file_index < validator->ctx->file_count);
-		aason_file* new_file = &validator->ctx->files[new_file_index];
-
-		new_file->return_file = validator->file_index;
-		new_file->return_index = validator->current_token;
-		validator->file_index = new_file_index;
-		validator->current_token = new_file->token_index;
-
-		token = &validator->tokens->tokens[validator->current_token++];
-	}
-
-	while (token->type == aason_token_type_eof)
-	{
-		const uint16_t old_file_index = validator->file_index;
-		aason_assert(old_file_index < validator->ctx->file_count);
-		aason_file* old_file = &validator->ctx->files[old_file_index];
-
-		if (old_file->return_index == 0)
-			break;
-
-		validator->current_token = old_file->return_index;
-		validator->file_index = old_file->return_file;
-
-		token = &validator->tokens->tokens[validator->current_token++];
-	}
-
-	*out_token = token;
-
-	//validator->file_index = token->file_index;
-	validator->line = token->line;
-	validator->column = token->column;
-
-	return token->type;
-}
-
 static void aason_validate_expect_token(aason_validator* validator, aason_token_type type, aason_token** out_token)
 {
-	const aason_token_type token_type = aason_validate_get_next_token(validator, out_token);
+	*out_token = aason_get_next_token(&validator->token_state);
+	const aason_token_type token_type = (*out_token)->type;
 
 	if (token_type != type)
 	{
@@ -103,7 +57,8 @@ static void aason_validate_expect_token(aason_validator* validator, aason_token_
 
 static aason_token_type aason_validate_expect_either_token(aason_validator* validator, aason_token_type type1, aason_token_type type2, aason_token** out_token)
 {
-	const aason_token_type token_type = aason_validate_get_next_token(validator, out_token);
+	*out_token = aason_get_next_token(&validator->token_state);
+	const aason_token_type token_type = (*out_token)->type;
 
 	if (!(token_type == type1 || token_type == type2))
 	{
@@ -126,11 +81,11 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 
 	uint32_t index = 0;
 	const aason_constructor_desc* constructor = nullptr;
-	for (index = 0; index < validator->ctx->constructor_count; ++index)
+	for (index = 0; index < validator->token_state.ctx->constructor_count; ++index)
 	{
-		if (strcmp(name, validator->ctx->constructors[index]->name) == 0)
+		if (strcmp(name, validator->token_state.ctx->constructors[index]->name) == 0)
 		{
-			constructor = validator->ctx->constructors[index];
+			constructor = validator->token_state.ctx->constructors[index];
 			break;
 		}
 	}
@@ -194,7 +149,8 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 		aason_validate_expect_token(validator, aason_token_type_identifier, &self);
 		aason_validate_expect_token(validator, aason_token_type_colon, &token);
 
-		switch (aason_validate_get_next_token(validator, &token))
+		token = aason_get_next_token(&validator->token_state);
+		switch (token->type)
 		{
 		case aason_token_type_str:
 		case aason_token_type_bin:
@@ -243,7 +199,8 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 
 	for (;;)
 	{
-		switch (aason_validate_get_next_token(validator, &token))
+		token = aason_get_next_token(&validator->token_state);
+		switch (token->type)
 		{
 		case aason_token_type_str:
 		case aason_token_type_bin:
@@ -286,11 +243,12 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 {
 	aason_validator validator = {
-		.ctx			= ctx,
-		.tokens			= tokens,
+		.token_state	= {
+			.ctx		= ctx,
+			.tokens		= tokens
+		},
 		.line			= 1,
 		.column			= 1,
-		.current_token	= 0,
 		.depth			= 1,
 		.max_depth		= 1,
 		.element_count	= 0
@@ -305,7 +263,8 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 		aason_validate_expect_token(&validator, aason_token_type_identifier, &self);
 		aason_validate_expect_token(&validator, aason_token_type_colon, &token);
 	
-		switch (aason_validate_get_next_token(&validator, &token))
+		token = aason_get_next_token(&validator.token_state);
+		switch (token->type)
 		{
 		case aason_token_type_str:
 		case aason_token_type_bin:
