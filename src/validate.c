@@ -1,25 +1,23 @@
 typedef struct
 {
 	aason_token_state	token_state;
-	uint32_t			line;
-	uint32_t			column;
 	uint32_t			depth;
 	uint32_t			max_depth;
 	uint32_t			element_count;
 	jmp_buf				jmp_ctx;
 } aason_validator;
 
-static void aason_validate_error(aason_validator* validator, aason_error_type error, const char* fmt, ...)
+static void aason_validate_error(aason_validator* validator, aason_error_type error, const aason_token* token, const char* fmt, ...)
 {
 	char buffer[4096];
 
-	aason_assert(validator->token_state.file_index < validator->token_state.ctx->file_count);
-	aason_file* file = &validator->token_state.ctx->files[validator->token_state.file_index];
+	aason_assert(token->file_index < validator->token_state.ctx->file_count);
+	aason_file* file = &validator->token_state.ctx->files[token->file_index];
 
 	validator->token_state.ctx->error = error;
 	validator->token_state.ctx->error_file = file->buffer;
-	validator->token_state.ctx->error_line = validator->line;
-	validator->token_state.ctx->error_column = validator->column;
+	validator->token_state.ctx->error_line = token->line;
+	validator->token_state.ctx->error_column = token->column;
 
 	if (validator->token_state.ctx->error_interface.error)
 	{
@@ -32,8 +30,8 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 			validator->token_state.ctx->error_interface.user_data,
 			error,
 			file->buffer,
-			validator->line,
-			validator->column,
+			token->line,
+			token->column,
 			buffer
 		);
 	}
@@ -41,40 +39,36 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 	longjmp(validator->jmp_ctx, 1);
 }
 
-static void aason_validate_expect_token(aason_validator* validator, aason_token_type type, aason_token** out_token)
+static aason_token* aason_validate_expect_token(aason_validator* validator, aason_token_type type)
 {
-	*out_token = aason_get_next_token(&validator->token_state);
-	const aason_token_type token_type = (*out_token)->type;
-
-	if (token_type != type)
+	aason_token* token = aason_get_next_token(&validator->token_state);
+	if (token->type != type)
 	{
-		aason_validate_error(validator, aason_error_unexpected_token,
+		aason_validate_error(validator, aason_error_unexpected_token, token,
 			"Token '{s}' found instead of expected token '{s}'",
-			aason_token_type_strings[token_type], aason_token_type_strings[type]
+			aason_token_type_strings[token->type], aason_token_type_strings[type]
 		);
 	}
+
+	return token;
 }
 
-static aason_token_type aason_validate_expect_either_token(aason_validator* validator, aason_token_type type1, aason_token_type type2, aason_token** out_token)
+static aason_token* aason_validate_expect_either_token(aason_validator* validator, aason_token_type type1, aason_token_type type2)
 {
-	*out_token = aason_get_next_token(&validator->token_state);
-	const aason_token_type token_type = (*out_token)->type;
-
-	if (!(token_type == type1 || token_type == type2))
+	aason_token* token = aason_get_next_token(&validator->token_state);
+	if (!(token->type == type1 || token->type == type2))
 	{
-		aason_validate_error(validator, aason_error_unexpected_token,
+		aason_validate_error(validator, aason_error_unexpected_token, token,
 			"Token '{s}' found instead of expected tokens '{s}' or '{s}'",
-			aason_token_type_strings[token_type], aason_token_type_strings[type1], aason_token_type_strings[type2]
+			aason_token_type_strings[token->type], aason_token_type_strings[type1], aason_token_type_strings[type2]
 		);
 	}
 
-	return token_type;
+	return token;
 }
 
 static void aason_validate_constructor(aason_validator* validator, aason_token* parent, aason_token* self)
 {
-	aason_token* token;
-
 	char* name = self->begin;
 	const size_t len = self->end - self->begin;
 	name[len] = 0; // Null terminate
@@ -95,50 +89,49 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 
 	parent->constructor_index = index;
 
-	aason_validate_expect_token(validator, aason_token_type_open_paren, &token);
+	aason_validate_expect_token(validator, aason_token_type_open_paren);
 
 	for (uint32_t i = 0; i < constructor->count; ++i)
 	{
 		switch (constructor->args[i])
 		{
 		case aason_arg_type_str:
-			aason_validate_expect_token(validator, aason_token_type_str, &token);
+			aason_validate_expect_token(validator, aason_token_type_str);
 			break;
 		case aason_arg_type_bin:
-			aason_validate_expect_token(validator, aason_token_type_bin, &token);
+			aason_validate_expect_token(validator, aason_token_type_bin);
 			break;
 		case aason_arg_type_dec:
-			aason_validate_expect_token(validator, aason_token_type_dec, &token);
+			aason_validate_expect_token(validator, aason_token_type_dec);
 			break;
 		case aason_arg_type_hex:
-			aason_validate_expect_token(validator, aason_token_type_hex, &token);
+			aason_validate_expect_token(validator, aason_token_type_hex);
 			break;
 		case aason_arg_type_bool:
-			aason_validate_expect_either_token(validator, aason_token_type_true, aason_token_type_false, &token);
+			aason_validate_expect_either_token(validator, aason_token_type_true, aason_token_type_false);
 			break;
 		case aason_arg_type_enum:
-			aason_validate_expect_token(validator, aason_token_type_identifier, &token);
+			aason_validate_expect_token(validator, aason_token_type_identifier);
 			break;
 		case aason_arg_type_float:
-			aason_validate_expect_token(validator, aason_token_type_float, &token);
+			aason_validate_expect_token(validator, aason_token_type_float);
 			break;
 		}
 
 		if (i < constructor->count - 1)
-			aason_validate_expect_token(validator, aason_token_type_comma, &token); // Skip comma token
+			aason_validate_expect_token(validator, aason_token_type_comma); // Skip comma token
 
 		++parent->count;
 		++validator->element_count;
 	}
 
-	aason_validate_expect_token(validator, aason_token_type_close_paren, &token);
+	aason_validate_expect_token(validator, aason_token_type_close_paren);
 }
 
 static void aason_validate_array(aason_validator* validator, aason_token* parent);
 
 static void aason_validate_object(aason_validator* validator, aason_token* parent)
 {
-	aason_token* self;
 	aason_token* token;
 
 	if (++validator->depth > validator->max_depth)
@@ -146,8 +139,8 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 
 	for (;;)
 	{
-		aason_validate_expect_token(validator, aason_token_type_identifier, &self);
-		aason_validate_expect_token(validator, aason_token_type_colon, &token);
+		aason_validate_expect_token(validator, aason_token_type_identifier);
+		aason_validate_expect_token(validator, aason_token_type_colon);
 
 		token = aason_get_next_token(&validator->token_state);
 		switch (token->type)
@@ -175,14 +168,14 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 			++parent->count;
 			break;
 		default:
-			aason_validate_error(validator, aason_error_unexpected_token,
+			aason_validate_error(validator, aason_error_unexpected_token, token,
 				"Unexpected token '{s}'", aason_token_type_strings[token->type]
 			);
 		}
 
 		++validator->element_count;
 
-		if (aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_object, &token) == aason_token_type_leave_object)
+		if (aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_object)->type == aason_token_type_leave_object)
 		{
 			--validator->depth;
 			return;
@@ -225,14 +218,14 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 			--validator->depth;
 			return;
 		default:
-			aason_validate_error(validator, aason_error_unexpected_token,
+			aason_validate_error(validator, aason_error_unexpected_token, token,
 				"Unexpected token '{s}'", aason_token_type_strings[token->type]
 			);
 		}
 
 		++validator->element_count;
 
-		if (aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_array, &token) == aason_token_type_leave_array)
+		if (aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_array)->type == aason_token_type_leave_array)
 		{
 			--validator->depth;
 			return;
@@ -247,8 +240,6 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 			.ctx		= ctx,
 			.tokens		= tokens
 		},
-		.line			= 1,
-		.column			= 1,
 		.depth			= 1,
 		.max_depth		= 1,
 		.element_count	= 0
@@ -258,10 +249,9 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 
 	if (!setjmp(validator.jmp_ctx))
 	{
-		aason_token* self;
 		aason_token* token;
-		aason_validate_expect_token(&validator, aason_token_type_identifier, &self);
-		aason_validate_expect_token(&validator, aason_token_type_colon, &token);
+		aason_validate_expect_token(&validator, aason_token_type_identifier);
+		aason_validate_expect_token(&validator, aason_token_type_colon);
 	
 		token = aason_get_next_token(&validator.token_state);
 		switch (token->type)
@@ -283,12 +273,12 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 			aason_validate_object(&validator, token);
 			break;
 		default:
-			aason_validate_error(&validator, aason_error_unexpected_token,
+			aason_validate_error(&validator, aason_error_unexpected_token, token,
 				"Unexpected token '{s}'", aason_token_type_strings[token->type]
 			);
 		}
 	
-		aason_validate_expect_token(&validator, aason_token_type_eof, &token);
+		aason_validate_expect_token(&validator, aason_token_type_eof);
 	
 		ctx->element_count = validator.element_count + 1;
 		ctx->max_stack_depth = validator.max_depth;
