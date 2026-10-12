@@ -45,34 +45,41 @@ static void aason_finalise_error(aason_finaliser* finaliser, aason_error_type er
 
 static aason_token* aason_finalise_get_next_token(aason_finaliser* finaliser)
 {
-	aason_assert(finaliser->token_index < finaliser->tokens->count);
-
 	aason_token* token;
 	for (;;)
 	{
+		aason_assert(finaliser->token_index < finaliser->tokens->count);
+
 		token = &finaliser->tokens->tokens[finaliser->token_index++];
 		if (token->type == aason_token_type_jump)
 		{
-			const uint16_t new_file_index = token->count;
-			aason_assert(new_file_index < finaliser->ctx->file_count);
-			aason_file* new_file = &finaliser->ctx->files[new_file_index];
+			const uint16_t target_file_index = token->count;
+			aason_assert(target_file_index < finaliser->ctx->file_count);
 
-			new_file->return_file = finaliser->file_index;
-			new_file->return_index = finaliser->token_index;
-			finaliser->file_index = new_file_index;
-			finaliser->token_index = new_file->token_index;
+			// Recursion is disallowed so we can store return position in each file struct
+			aason_file* target_file = &finaliser->ctx->files[target_file_index];
+			target_file->return_file = finaliser->file_index;
+			target_file->return_index = finaliser->token_index;
+
+			// Update current position to point to target file
+			finaliser->file_index = target_file_index;
+			finaliser->token_index = target_file->token_index;
 		}
 		else if (token->type == aason_token_type_eof)
 		{
-			const uint16_t old_file_index = finaliser->file_index;
-			aason_assert(old_file_index < finaliser->ctx->file_count);
-			aason_file* old_file = &finaliser->ctx->files[old_file_index];
+			const uint16_t current_file_index = finaliser->file_index;
+			aason_assert(current_file_index < finaliser->ctx->file_count);
 
-			if (old_file->return_index == 0)
-				break;
+			if (current_file_index == 0)
+				break; // End of root file
 
-			finaliser->token_index = old_file->return_index;
-			finaliser->file_index = old_file->return_file;
+			const aason_file* current_file = &finaliser->ctx->files[current_file_index];
+			aason_assert(current_file->return_file < finaliser->ctx->file_count);
+			aason_assert(current_file->return_index < finaliser->tokens->count);
+
+			// Restore previous position (note: token index was incrementing before jump)
+			finaliser->file_index = current_file->return_file;
+			finaliser->token_index = current_file->return_index;
 		}
 		else
 		{
@@ -99,7 +106,6 @@ static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* to
 	char* buffer = file->buffer + file->offset;
 
 	element->type = aason_type_str;
-	element->value_file_index = token->file_index;
 	element->str_value.offset = (uint32_t)(token->begin - buffer) + 1;
 	element->str_value.len = (uint32_t)(token->end - token->begin) - 1;
 
@@ -110,7 +116,6 @@ static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* to
 static void aason_finalise_parse_bin(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_int;
-	element->value_file_index = token->file_index;
 
 	if (!aason_from_string_bin(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, token, "Binary integer too large");
@@ -119,7 +124,6 @@ static void aason_finalise_parse_bin(aason_finaliser* finaliser, aason_token* to
 static void aason_finalise_parse_dec(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_int;
-	element->value_file_index = token->file_index;
 
 	if (!aason_from_string_dec(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, token, "Decimal integer too large");
@@ -128,7 +132,6 @@ static void aason_finalise_parse_dec(aason_finaliser* finaliser, aason_token* to
 static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_int;
-	element->value_file_index = token->file_index;
 
 	if (!aason_from_string_hex(token->begin, token->end, &element->int_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, token, "Hexadecimal integer too large");
@@ -137,21 +140,18 @@ static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* to
 static void aason_finalise_parse_true(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_bool;
-	element->value_file_index = token->file_index;
 	element->bool_value = true;
 }
 
 static void aason_finalise_parse_false(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_bool;
-	element->value_file_index = token->file_index;
 	element->bool_value = false;
 }
 
 static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
 	element->type = aason_type_float;
-	element->value_file_index = token->file_index;
 
 	if (!aason_from_string_float(finaliser->ctx->locale, token->begin, token->end, &element->float_value))
 		aason_finalise_error(finaliser, aason_error_out_of_range, token, "Floating point number out of range");
@@ -163,7 +163,6 @@ static void aason_finalise_parse_enum(aason_finaliser* finaliser, aason_token* t
 	char* buffer = file->buffer + file->offset;
 
 	element->type = aason_type_enum;
-	element->value_file_index = token->file_index;
 	element->enum_value.offset = (uint32_t)(token->begin - buffer);
 	element->enum_value.len = (uint32_t)(token->end - token->begin);
 
@@ -172,67 +171,55 @@ static void aason_finalise_parse_enum(aason_finaliser* finaliser, aason_token* t
 }
 
 // Forward declared as these functions call each other
-// TODO: Try using an iterative approach once the existing code has been simplified
-static void aason_finalise_parse_value(aason_finaliser* finaliser, aason_token* parent, aason_token* token, aason_element* element, bool inside_array);
+// TODO: Try using an iterative approach
+static void aason_finalise_parse_value(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 
-/*
-	TODO:
-	* This function could be simplified by making things more consistent in the previous stages.
-	* Instead of placing the child count in the key when an object is named, and in the brace when
-	unnamed (within an array), we always place the count within the brace.
-	* That would eliminate the need for the inside_array parameter.
-	* Going further, putting the count in the opening bracket and parenthesis of arrays and
-	constructors would allow getting rid of the key parameter.
-	* The value would always be the first token that defines the type.
-	* We should also make the error file, line, and column point to the value, and not the key.
-*/
-static void aason_finalise_parse_value(aason_finaliser* finaliser, aason_token* key, aason_token* value, aason_element* element, bool inside_array)
+static void aason_finalise_parse_value(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	// TODO: Move setting file, line, and column here once we only take value tokens
+	element->line = token->line;
+	element->column = token->column;
+	element->value_file_index = token->file_index;
 
-	switch (value->type)
+	switch (token->type)
 	{
 	case aason_token_type_str:
-		aason_finalise_parse_str(finaliser, value, element);
+		aason_finalise_parse_str(finaliser, token, element);
 		break;
 	case aason_token_type_bin:
-		aason_finalise_parse_bin(finaliser, value, element);
+		aason_finalise_parse_bin(finaliser, token, element);
 		break;
 	case aason_token_type_dec:
-		aason_finalise_parse_dec(finaliser, value, element);
+		aason_finalise_parse_dec(finaliser, token, element);
 		break;
 	case aason_token_type_hex:
-		aason_finalise_parse_hex(finaliser, value, element);
+		aason_finalise_parse_hex(finaliser, token, element);
 		break;
 	case aason_token_type_true:
-		aason_finalise_parse_true(finaliser, value, element);
+		aason_finalise_parse_true(finaliser, token, element);
 		break;
 	case aason_token_type_false:
-		aason_finalise_parse_false(finaliser, value, element);
+		aason_finalise_parse_false(finaliser, token, element);
 		break;
 	case aason_token_type_float:
-		aason_finalise_parse_float(finaliser, value, element);
+		aason_finalise_parse_float(finaliser, token, element);
 		break;
 	case aason_token_type_identifier:
-		aason_finalise_parse_enum(finaliser, value, element);
+		aason_finalise_parse_enum(finaliser, token, element);
 		break;
 	case aason_token_type_enter_array:
-		aason_finalise_parse_array(finaliser, key, element);
+		aason_finalise_parse_array(finaliser, token, element);
 		break;
 	case aason_token_type_enter_object:
-		/*
-			Named objects store the count in the key token, while unnamed objects in arrays store
-			the count in the opening brace token.
-		*/
-		aason_finalise_parse_object(finaliser, inside_array ? value : key, element);
+		aason_finalise_parse_object(finaliser, token, element);
 		break;
 	case aason_token_type_constructor:
-		aason_finalise_parse_constructor(finaliser, key, element);
+		aason_finalise_parse_constructor(finaliser, token, element);
 		break;
 	default:
+		aason_assert(false);
 		break;
 	}
 }
@@ -254,10 +241,8 @@ static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* 
 		children[i].key_file_index = token->file_index;
 		children[i].key_len = 0;
 		children[i].key_offset = 0;
-		children[i].line = token->line;
-		children[i].column = token->column;
 
-		aason_finalise_parse_value(finaliser, self, token, &children[i], true);
+		aason_finalise_parse_value(finaliser, token, &children[i]);
 
 		if (i < array_count - 1)
 			aason_finalise_get_next_token(finaliser); // Skip comma token
@@ -279,8 +264,6 @@ static aason_token* aason_finalise_init_key(aason_finaliser* finaliser, aason_el
 	element->key_file_index = token->file_index;
 	element->key_len = (uint32_t)(token->end - token->begin);
 	element->key_offset = (uint32_t)(token->begin - file_buffer);
-	element->line = token->line;
-	element->column = token->column;
 
 	return token;
 }
@@ -299,7 +282,7 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 	{
 		aason_token* key = aason_finalise_init_key(finaliser, &children[i]);
 		aason_token* value = aason_finalise_get_next_token(finaliser);
-		aason_finalise_parse_value(finaliser, key, value, &children[i], false);
+		aason_finalise_parse_value(finaliser, value, &children[i]);
 
 		if (i < field_count - 1)
 			aason_finalise_get_next_token(finaliser); // Skip comma token
@@ -326,7 +309,7 @@ static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_t
 	for (uint32_t i = 0; i < arg_count; ++i)
 	{
 		token = aason_finalise_get_next_token(finaliser);
-		aason_finalise_parse_value(finaliser, self, token, &children[i], false);
+		aason_finalise_parse_value(finaliser, token, &children[i]);
 
 		if (i < arg_count - 1)
 			aason_finalise_get_next_token(finaliser); // Skip comma token
@@ -349,7 +332,7 @@ static bool aason_finalise(aason_context* ctx, aason_tokens* tokens)
 		aason_element* element = aason_finalise_allocate_elements(&finaliser, 1);
 		aason_token* key = aason_finalise_init_key(&finaliser, element);
 		aason_token* value = aason_finalise_get_next_token(&finaliser);
-		aason_finalise_parse_value(&finaliser, key, value, element, false);
+		aason_finalise_parse_value(&finaliser, value, element);
 
 		aason_assert(finaliser.element_index == ctx->element_count);
 

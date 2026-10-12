@@ -207,15 +207,15 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 			++parent->count;
 			break;
 		case aason_token_type_constructor:
-			aason_validate_constructor(validator, self, token);
+			aason_validate_constructor(validator, token, token);
 			++parent->count;
 			break;
 		case aason_token_type_enter_array:
-			aason_validate_array(validator, self);
+			aason_validate_array(validator, token);
 			++parent->count;
 			break;
 		case aason_token_type_enter_object:
-			aason_validate_object(validator, self);
+			aason_validate_object(validator, token);
 			++parent->count;
 			break;
 		default:
@@ -318,10 +318,10 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 		case aason_token_type_constructor:
 			break;
 		case aason_token_type_enter_array:
-			aason_validate_array(&validator, self);
+			aason_validate_array(&validator, token);
 			break;
 		case aason_token_type_enter_object:
-			aason_validate_object(&validator, self);
+			aason_validate_object(&validator, token);
 			break;
 		default:
 			aason_validate_error(&validator, aason_error_unexpected_token,

@@ -15,8 +15,8 @@ static void aason_read_error(aason_context* ctx, aason_error_type error, const a
 {
 	char buffer[4096];
 
-	aason_assert(element->key_file_index < ctx->file_count);
-	aason_file* file = &ctx->files[element->key_file_index];
+	aason_assert(element->value_file_index < ctx->file_count);
+	aason_file* file = &ctx->files[element->value_file_index];
 
 	ctx->error = error;
 	ctx->error_file = file->buffer;
