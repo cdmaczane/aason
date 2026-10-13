@@ -39,6 +39,7 @@ typedef enum
 	aason_error_unexpected_token,
 	aason_error_expected_element,
 	aason_error_expected_identifier,
+	aason_error_unknown_constructor,
 	aason_error_mismatched_array_depth,
 	aason_error_mismatched_object_depth,
 	// Read errors

@@ -67,10 +67,10 @@ static aason_token* aason_validate_expect_either_token(aason_validator* validato
 	return token;
 }
 
-static void aason_validate_constructor(aason_validator* validator, aason_token* parent, aason_token* self)
+static void aason_validate_constructor(aason_validator* validator, aason_token* token)
 {
-	char* name = self->begin;
-	const size_t len = self->end - self->begin;
+	char* name = token->begin;
+	const size_t len = token->end - token->begin;
 	name[len] = 0; // Null terminate
 
 	uint32_t index = 0;
@@ -84,10 +84,14 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 		}
 	}
 
-	// TODO: Raise error
-	aason_assert(constructor);
+	if (!constructor)
+	{
+		aason_validate_error(validator, aason_error_unknown_constructor, token,
+			"Unknown constructor '%s'", name
+		);
+	}
 
-	parent->constructor_index = index;
+	token->constructor_index = index;
 
 	aason_validate_expect_token(validator, aason_token_type_open_paren);
 
@@ -121,7 +125,7 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 		if (i < constructor->count - 1)
 			aason_validate_expect_token(validator, aason_token_type_comma); // Skip comma token
 
-		++parent->count;
+		++token->count;
 		++validator->element_count;
 	}
 
@@ -139,7 +143,13 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 
 	for (;;)
 	{
-		aason_validate_expect_token(validator, aason_token_type_identifier);
+		token = aason_validate_expect_either_token(validator, aason_token_type_identifier, aason_token_type_leave_object);
+		if (token->type == aason_token_type_leave_object)
+		{
+			--validator->depth;
+			return;
+		}
+
 		aason_validate_expect_token(validator, aason_token_type_colon);
 
 		token = aason_get_next_token(&validator->token_state);
@@ -156,7 +166,7 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 			++parent->count;
 			break;
 		case aason_token_type_constructor:
-			aason_validate_constructor(validator, token, token);
+			aason_validate_constructor(validator, token);
 			++parent->count;
 			break;
 		case aason_token_type_enter_array:
@@ -206,7 +216,11 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 			++parent->count;
 			break;
 		case aason_token_type_constructor:
-			aason_validate_constructor(validator, token, token);
+			aason_validate_constructor(validator, token);
+			++parent->count;
+			break;
+		case aason_token_type_enter_array:
+			aason_validate_array(validator, token);
 			++parent->count;
 			break;
 		case aason_token_type_enter_object:
@@ -245,15 +259,12 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 		.element_count	= 0
 	};
 
-	ctx->files[0].return_index = 0;
-
 	if (!setjmp(validator.jmp_ctx))
 	{
-		aason_token* token;
 		aason_validate_expect_token(&validator, aason_token_type_identifier);
 		aason_validate_expect_token(&validator, aason_token_type_colon);
 	
-		token = aason_get_next_token(&validator.token_state);
+		aason_token* token = aason_get_next_token(&validator.token_state);
 		switch (token->type)
 		{
 		case aason_token_type_str:
@@ -265,7 +276,9 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 		case aason_token_type_float:
 		case aason_token_type_identifier:
 		case aason_token_type_constructor:
-			break;
+			aason_validate_error(&validator, aason_error_unexpected_token, token,
+				"Root must be a single object or array"
+			);
 		case aason_token_type_enter_array:
 			aason_validate_array(&validator, token);
 			break;
