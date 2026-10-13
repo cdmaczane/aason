@@ -170,6 +170,7 @@ struct aason_context
 	aason_error_type				error;
 	uint32_t						tab_size;
 	bool							reading;
+	bool							allow_trailing_commas;
 	uint32_t						stack_depth;
 	uint32_t						constructor_count;
 	aason_locale					locale;

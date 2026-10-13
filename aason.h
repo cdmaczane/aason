@@ -35,6 +35,7 @@ typedef enum
 	aason_error_multiple_roots,
 	aason_error_colon_expected,
 	aason_error_unexpected_eof,
+	aason_error_trailing_comma,
 	aason_error_unexpected_char,
 	aason_error_unexpected_token,
 	aason_error_expected_element,
@@ -122,6 +123,7 @@ typedef void (*aason_format_callback)(char* out, size_t size, const char* format
 typedef struct
 {
 	const char*						path;
+	bool							allow_trailing_commas;
 	uint32_t						tab_size;
 	aason_format_callback			format;
 	const aason_error_interface*	error_interface;

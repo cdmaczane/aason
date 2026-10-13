@@ -137,6 +137,7 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 static void aason_validate_object(aason_validator* validator, aason_token* parent)
 {
 	aason_token* token;
+	aason_token* comma;
 
 	if (++validator->depth > validator->max_depth)
 		validator->max_depth = validator->depth;
@@ -146,6 +147,14 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 		token = aason_validate_expect_either_token(validator, aason_token_type_identifier, aason_token_type_leave_object);
 		if (token->type == aason_token_type_leave_object)
 		{
+			// If we get here then it means that the previous token was a comma
+			if (parent->count != 0 && !validator->token_state.ctx->allow_trailing_commas)
+			{
+				aason_validate_error(validator, aason_error_trailing_comma, comma,
+					"Trailing commas are not permitted with the current settings"
+				);
+			}
+
 			--validator->depth;
 			return;
 		}
@@ -185,7 +194,8 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 
 		++validator->element_count;
 
-		if (aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_object)->type == aason_token_type_leave_object)
+		comma = aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_object);
+		if (comma->type == aason_token_type_leave_object)
 		{
 			--validator->depth;
 			return;
@@ -196,6 +206,7 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 static void aason_validate_array(aason_validator* validator, aason_token* parent)
 {
 	aason_token* token;
+	aason_token* comma;
 
 	if (++validator->depth > validator->max_depth)
 		validator->max_depth = validator->depth;
@@ -203,6 +214,19 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 	for (;;)
 	{
 		token = aason_get_next_token(&validator->token_state);
+		if (token->type == aason_token_type_leave_array)
+		{
+			if (parent->count != 0 && !validator->token_state.ctx->allow_trailing_commas)
+			{
+				aason_validate_error(validator, aason_error_trailing_comma, comma,
+					"Trailing commas are not permitted with the current settings"
+				);
+			}
+
+			--validator->depth;
+			return;
+		}
+
 		switch (token->type)
 		{
 		case aason_token_type_str:
@@ -227,10 +251,6 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 			aason_validate_object(validator, token);
 			++parent->count;
 			break;
-		case aason_token_type_leave_array:
-			// Empty array
-			--validator->depth;
-			return;
 		default:
 			aason_validate_error(validator, aason_error_unexpected_token, token,
 				"Unexpected token '{s}'", aason_token_type_strings[token->type]
@@ -239,7 +259,8 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 
 		++validator->element_count;
 
-		if (aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_array)->type == aason_token_type_leave_array)
+		comma = aason_validate_expect_either_token(validator, aason_token_type_comma, aason_token_type_leave_array);
+		if (comma->type == aason_token_type_leave_array)
 		{
 			--validator->depth;
 			return;
