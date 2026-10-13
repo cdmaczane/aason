@@ -194,11 +194,12 @@ static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* 
 
 		aason_finalise_parse_value(finaliser, token, &children[i]);
 
-		if (i < array_count - 1)
-			aason_get_next_token(&finaliser->token_state); // Skip comma token
+		token = aason_get_next_token(&finaliser->token_state); // Skip comma token
 	}
 
-	aason_get_next_token(&finaliser->token_state); // Skip leave array token
+	// In the case of no trailing comma, this will be a leave array token
+	if (token->type != aason_token_type_leave_array)
+		aason_get_next_token(&finaliser->token_state); // Skip leave object token
 }
 
 static void aason_finalise_init_key(aason_finaliser* finaliser, aason_element* element)
@@ -232,11 +233,12 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 		token = aason_get_next_token(&finaliser->token_state);
 		aason_finalise_parse_value(finaliser, token, &children[i]);
 
-		if (i < field_count - 1)
-			aason_get_next_token(&finaliser->token_state); // Skip comma token
+		token = aason_get_next_token(&finaliser->token_state); // Skip comma token
 	}
 
-	aason_get_next_token(&finaliser->token_state); // Skip leave object token
+	// In the case of no trailing comma, this will be a leave object token
+	if (token->type != aason_token_type_leave_object)
+		aason_get_next_token(&finaliser->token_state); // Skip leave object token
 }
 
 static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_token* token, aason_element* element)
