@@ -11,7 +11,6 @@ enum
 
 enum
 {
-	aason_tokenise_char_error,
 	aason_tokenise_char_eof,
 	aason_tokenise_char_jump
 };
@@ -31,7 +30,6 @@ typedef enum
 
 typedef enum
 {
-	aason_token_type_error,
 	aason_token_type_eof,
 	aason_token_type_str,
 	aason_token_type_bin,

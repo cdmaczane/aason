@@ -1,3 +1,26 @@
+static const char* aason_token_type_strings[] = {
+	"EOF",
+	"string",
+	"binary number",
+	"decimal number",
+	"hexadecimal number",
+	"true",
+	"false",
+	",",
+	":",
+	"floating point number",
+	"identifier",
+	"constructor",
+	"(",
+	")",
+	"[",
+	"]",
+	"{",
+	"}",
+	"JMP"
+};
+static_assert(sizeof(aason_token_type_strings) / sizeof(const char*) == aason_token_type_count);
+
 typedef struct
 {
 	aason_token_state	token_state;

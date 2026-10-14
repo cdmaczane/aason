@@ -58,6 +58,7 @@ extern "C" {
 #endif
 
 #include "src/archive.c"
+#include "src/preparse.c"
 #include "src/tokenise.c"
 #include "src/validate.c"
 #include "src/finalise.c"

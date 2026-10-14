@@ -1,28 +1,3 @@
-// TODO: Move
-static const char* aason_token_type_strings[] = {
-	"",
-	"EOF",
-	"string",
-	"binary number",
-	"decimal number",
-	"hexadecimal number",
-	"true",
-	"false",
-	",",
-	":",
-	"floating point number",
-	"identifier",
-	"constructor",
-	"(",
-	")",
-	"[",
-	"]",
-	"{",
-	"}",
-	"JMP"
-};
-static_assert(sizeof(aason_token_type_strings) / sizeof(const char*) == aason_token_type_count);
-
 typedef struct
 {
 	aason_context*	ctx;
@@ -38,6 +13,7 @@ typedef struct
 	uint32_t		next_line;
 	uint32_t		next_column;
 	uint16_t		file_index;
+	jmp_buf			jmp_ctx;
 } aason_tokeniser;
 
 static bool aason_tokenise_is_valid_bin_char(char c)
@@ -115,6 +91,8 @@ static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type er
 			buffer
 		);
 	}
+
+	longjmp(tokeniser->jmp_ctx, 1);
 }
 
 static int64_t aason_utf8_byte_count(char c)
@@ -142,7 +120,6 @@ static char aason_tokenise_get_char(aason_tokeniser* tokeniser)
 	{
 		// This means invalid UTF-8 sequence
 		aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid UTF-8 character");
-		c = aason_tokenise_char_error;
 	}
 	else
 	{
@@ -180,14 +157,12 @@ static char aason_tokenise_get_char(aason_tokeniser* tokeniser)
 			{
 				// Invalid control character
 				aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid control character '{i32}'", c);
-				c = aason_tokenise_char_error;
 			}
 		}
 		else if (c == 127)
 		{
 			// Delete character
 			aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid delete character");
-			c = aason_tokenise_char_error;
 		}
 		else
 		{
@@ -209,15 +184,16 @@ static char aason_tokenise_skip_comments(aason_tokeniser* tokeniser)
 		do
 		{
 			c = aason_tokenise_get_char(tokeniser);
-		} while (c != '\n'); // TODO: We need to check for aason_tokenise_char_error
+		} while (c != '\n' && c != aason_tokenise_char_eof);
 
 		// Consume final '\n'
-		c = aason_tokenise_get_char(tokeniser);
+		if (c == '\n')
+			c = aason_tokenise_get_char(tokeniser);
 	}
 	else if (c == '*')
 	{
 		char prev = 0;
-		int64_t depth = 1;
+		uint32_t depth = 1;
 
 		for (;;)
 		{
@@ -233,7 +209,7 @@ static char aason_tokenise_skip_comments(aason_tokeniser* tokeniser)
 
 				prev = 0; // Prevent misinterpreting string "*/*" as "*/" and "/*"
 			}
-			else if (c == '/' && prev == '*')
+			else if (prev == '/' && c == '*')
 			{
 				++depth;
 				prev = 0; // Prevent misinterpreting string "/*/" as "/*" and "*/"
@@ -241,12 +217,6 @@ static char aason_tokenise_skip_comments(aason_tokeniser* tokeniser)
 			else if (c == aason_tokenise_char_eof)
 			{
 				aason_tokenise_error(tokeniser, aason_error_invalid_char, "Unexpected end-of-file");
-				c = aason_tokenise_char_error;
-				break;
-			}
-			else if (c == aason_tokenise_char_error)
-			{
-				break;
 			}
 
 			prev = c;
@@ -255,7 +225,6 @@ static char aason_tokenise_skip_comments(aason_tokeniser* tokeniser)
 	else
 	{
 		aason_tokenise_error(tokeniser, aason_error_invalid_char, "Expected '/' or '*' for comment");
-		c = aason_tokenise_char_error;
 	}
 
 	return c;
@@ -305,11 +274,6 @@ static aason_token_type aason_tokenise_parse_str(aason_tokeniser* tokeniser)
 		else if (c == aason_tokenise_char_eof)
 		{
 			aason_tokenise_error(tokeniser, aason_error_invalid_char, "Unexpected end-of-file");
-			return aason_token_type_error;
-		}
-		else if (c == aason_tokenise_char_error)
-		{
-			return aason_token_type_error;
 		}
 		else
 		{
@@ -365,10 +329,7 @@ static aason_token_type aason_tokenise_parse_number(aason_tokeniser* tokeniser)
 		if (c == '.')
 		{
 			if (type == aason_token_type_float)
-			{
 				aason_tokenise_error(tokeniser, aason_error_invalid_char, "Floating point numbers may only contain a single '.' character");
-				return aason_token_type_error;
-			}
 
 			type = aason_token_type_float;
 		}
@@ -429,7 +390,7 @@ static aason_token* aason_allocate_token(aason_allocator* scratch, aason_tokens*
 	return &tokens->tokens[tokens->count++];
 }
 
-static void aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aason_tokens* tokens, uint32_t file_index)
+static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aason_tokens* tokens, uint32_t file_index)
 {
 	aason_assert(file_index < ctx->file_count);
 
@@ -448,8 +409,10 @@ static void aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 		.next_column	= 1
 	};
 
-	aason_tokenise_get_char(&tokeniser);
+	if (setjmp(tokeniser.jmp_ctx))
+		return false;
 
+	aason_tokenise_get_char(&tokeniser);
 	for (;;)
 	{
 		char c = aason_tokenise_skip_whitespace(&tokeniser);
@@ -530,21 +493,15 @@ static void aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 			token->type = aason_token_type_eof;
 			break;
 		}
-		else if (c == aason_tokenise_char_error)
-		{
-			break;
-		}
 		else
 		{
 			aason_tokenise_error(&tokeniser, aason_error_invalid_char, "Invalid token");
-			break;
 		}
-
-		if (token->type == aason_token_type_error)
-			break;
 
 		token->end = tokeniser.current;
 	}
+
+	return true;
 }
 
 static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch)
@@ -555,11 +512,8 @@ static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch)
 	{
 		ctx->files[i].token_index = tokens.count;
 
-		aason_tokenise_file(ctx, scratch, &tokens, i);
-		if (ctx->error != aason_error_none)
+		if (!aason_tokenise_file(ctx, scratch, &tokens, i))
 			break;
-
-		//ctx->files[i].token_count = tokens.count - ctx->files[i].token_index;
 	}
 
 	return tokens;
