@@ -207,14 +207,23 @@ static void aason_finalise_init_key(aason_finaliser* finaliser, aason_element* e
 	aason_token* token = aason_get_next_token(&finaliser->token_state);
 	aason_get_next_token(&finaliser->token_state); // Skip colon token
 
+	char* begin = token->begin;
+	char* end = token->end;
+	if (finaliser->token_state.ctx->mode == aason_mode_json)
+	{
+		// Trim quotes
+		++begin;
+		--end;
+	}
+
 	aason_assert(token->file_index < finaliser->token_state.ctx->file_count);
 	aason_file* file = &finaliser->token_state.ctx->files[token->file_index];
 	char* file_buffer = file->buffer + file->offset;
-	*token->end = 0; // Null terminate key string
+	*end = 0; // Null terminate key string
 
 	element->key_file_index = token->file_index;
-	element->key_len = (uint32_t)(token->end - token->begin);
-	element->key_offset = (uint32_t)(token->begin - file_buffer);
+	element->key_len = (uint32_t)(end - begin);
+	element->key_offset = (uint32_t)(begin - file_buffer);
 }
 
 static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* token, aason_element* element)
@@ -280,7 +289,10 @@ static bool aason_finalise(aason_context* ctx, aason_tokens* tokens)
 	if (!setjmp(finaliser.jmp_ctx))
 	{
 		aason_element* element = aason_finalise_allocate_elements(&finaliser, 1);
-		aason_finalise_init_key(&finaliser, element);
+
+		if (ctx->mode != aason_mode_json)
+			aason_finalise_init_key(&finaliser, element);
+
 		aason_token* token = aason_get_next_token(&finaliser.token_state);
 		aason_finalise_parse_value(&finaliser, token, element);
 

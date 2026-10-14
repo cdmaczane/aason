@@ -169,6 +169,7 @@ struct aason_context
 	//const char*						path;
 	aason_error_type				error;
 	uint32_t						tab_size;
+	uint8_t							mode;
 	bool							reading;
 	bool							allow_trailing_commas;
 	uint32_t						stack_depth;

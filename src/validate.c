@@ -45,7 +45,7 @@ static aason_token* aason_validate_expect_token(aason_validator* validator, aaso
 	if (token->type != type)
 	{
 		aason_validate_error(validator, aason_error_unexpected_token, token,
-			"Token '{s}' found instead of expected token '{s}'",
+			"Token '%s' found instead of expected token '%s'",
 			aason_token_type_strings[token->type], aason_token_type_strings[type]
 		);
 	}
@@ -59,7 +59,7 @@ static aason_token* aason_validate_expect_either_token(aason_validator* validato
 	if (!(token->type == type1 || token->type == type2))
 	{
 		aason_validate_error(validator, aason_error_unexpected_token, token,
-			"Token '{s}' found instead of expected tokens '{s}' or '{s}'",
+			"Token '%s' found instead of expected tokens '%s' or '%s'",
 			aason_token_type_strings[token->type], aason_token_type_strings[type1], aason_token_type_strings[type2]
 		);
 	}
@@ -144,7 +144,11 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 
 	for (;;)
 	{
-		token = aason_validate_expect_either_token(validator, aason_token_type_identifier, aason_token_type_leave_object);
+		if (validator->token_state.ctx->mode == aason_mode_json)
+			token = aason_validate_expect_either_token(validator, aason_token_type_str, aason_token_type_leave_object);
+		else
+			token = aason_validate_expect_either_token(validator, aason_token_type_identifier, aason_token_type_leave_object);
+
 		if (token->type == aason_token_type_leave_object)
 		{
 			// If we get here then it means that the previous token was a comma
@@ -188,7 +192,7 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 			break;
 		default:
 			aason_validate_error(validator, aason_error_unexpected_token, token,
-				"Unexpected token '{s}'", aason_token_type_strings[token->type]
+				"Unexpected token '%s'", aason_token_type_strings[token->type]
 			);
 		}
 
@@ -253,7 +257,7 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 			break;
 		default:
 			aason_validate_error(validator, aason_error_unexpected_token, token,
-				"Unexpected token '{s}'", aason_token_type_strings[token->type]
+				"Unexpected token '%s'", aason_token_type_strings[token->type]
 			);
 		}
 
@@ -282,8 +286,11 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 
 	if (!setjmp(validator.jmp_ctx))
 	{
-		aason_validate_expect_token(&validator, aason_token_type_identifier);
-		aason_validate_expect_token(&validator, aason_token_type_colon);
+		if (ctx->mode != aason_mode_json)
+		{
+			aason_validate_expect_token(&validator, aason_token_type_identifier);
+			aason_validate_expect_token(&validator, aason_token_type_colon);
+		}
 	
 		aason_token* token = aason_get_next_token(&validator.token_state);
 		switch (token->type)
@@ -308,7 +315,7 @@ static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
 			break;
 		default:
 			aason_validate_error(&validator, aason_error_unexpected_token, token,
-				"Unexpected token '{s}'", aason_token_type_strings[token->type]
+				"Unexpected token '%s'", aason_token_type_strings[token->type]
 			);
 		}
 	

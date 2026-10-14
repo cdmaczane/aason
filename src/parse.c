@@ -187,6 +187,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 	aason_context temp_ctx = {
 		.error = aason_error_none,
 		.tab_size = tab_size,
+		.mode = desc->mode,
 		.reading = true,
 		.allow_trailing_commas = desc->allow_trailing_commas,
 		.constructor_count = (uint32_t)desc->constructor_count,

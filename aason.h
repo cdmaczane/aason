@@ -96,6 +96,19 @@ typedef enum
 	aason_arg_type_float
 } aason_arg_type;
 
+/*
+	AASON supports reading and writing standard JSON using its strongly typed API. It is intended
+	for applications that need to serialise and deserialise known data structures, rather than
+	inspect or manipulate arbitrary JSON documents. Some features are disabled in JSON mode such as
+	#include and user-defined constructors. Other features can optionally be enabled such as
+	trailing commas. Comments are always supported despite not being supported by the format.
+*/
+typedef enum
+{
+	aason_mode_aason,
+	aason_mode_json
+} aason_mode;
+
 typedef struct
 {
 	aason_arg_type	type;
@@ -123,6 +136,7 @@ typedef void (*aason_format_callback)(char* out, size_t size, const char* format
 typedef struct
 {
 	const char*						path;
+	aason_mode						mode;
 	bool							allow_trailing_commas;
 	uint32_t						tab_size;
 	aason_format_callback			format;

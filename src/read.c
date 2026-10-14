@@ -78,8 +78,13 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 
 	if (stack_depth == 0)
 	{
+		if (ctx->mode == aason_mode_json)
+			return object_element;
+
 		const char* key_buffer = aason_read_get_key_buffer(ctx, object_element);
-		if (key_len == object_element->key_len && memcmp(key, key_buffer + object_element->key_offset, key_len) == 0)
+		const char* key_string = key_buffer + object_element->key_offset;
+
+		if (key_len == object_element->key_len && memcmp(key, key_string, key_len) == 0)
 		{
 			if (object_element->type == type)
 			{
@@ -105,8 +110,9 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 		{
 			const aason_element* element = &children[i];
 			const char* key_buffer = aason_read_get_key_buffer(ctx, element);
+			const char* key_string = key_buffer + element->key_offset;
 	
-			if (key_len == element->key_len && memcmp(key, key_buffer + element->key_offset, key_len) == 0)
+			if (key_len == element->key_len && memcmp(key, key_string, key_len) == 0)
 			{
 				if (element->type == type)
 				{
