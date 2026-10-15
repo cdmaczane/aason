@@ -11,8 +11,12 @@ enum
 
 enum
 {
-	aason_tokenise_char_eof,
-	aason_tokenise_char_jump
+	aason_char_op_eof,
+	aason_char_op_jump,
+	aason_char_op_skip_line_short,
+	aason_char_op_skip_line_long,
+	aason_char_op_skip_columns_short,
+	aason_char_op_skip_columns_long
 };
 
 // TODO: Add flags type that separates enum values using '|'
@@ -72,6 +76,25 @@ typedef struct
 	uint32_t		count;
 	uint32_t		capacity;
 } aason_tokens;
+
+typedef struct
+{
+	char*		buffer;			// Buffer to path string followed by the file data and a null terminator
+	uint32_t	size;			// Does not include the null terminator which simplifies parsing
+	uint32_t	offset;			// Buffer starts with path string, so this is the offset to the actual data
+	uint32_t	token_index;	// Index of first token from this file in global token array
+	uint32_t	return_file;
+	uint32_t	return_index;
+	//uint32_t	token_count;
+	bool		inside;			// Used to check for recursion
+} aason_file;
+
+typedef struct
+{
+	aason_file*	files;
+	uint32_t	count;
+	uint32_t	capacity;
+} aason_files;
 
 typedef struct
 {
@@ -147,18 +170,6 @@ typedef struct
 	uint32_t child_index;
 } aason_stack_entry;
 
-typedef struct
-{
-	char*		buffer;			// Buffer to path string followed by the file data and a null terminator
-	uint32_t	size;			// Does not include the null terminator which simplifies parsing
-	uint32_t	offset;			// Buffer starts with path string, so this is the offset to the actual data
-	uint32_t	token_index;	// Index of first token from this file in global token array
-	uint32_t	return_file;
-	uint32_t	return_index;
-	//uint32_t	token_count;
-	bool		inside;			// Used to check for recursion
-} aason_file;
-
 // TODO: Allow mechanism to get line and column of last element read for external error handling.
 // TODO: Can probably compact as some data will no longer be required once error has occurred.
 // TODO: Consider renaming elements within objects to "fields".
@@ -208,6 +219,8 @@ struct aason_context
 	};
 };
 //static_assert(sizeof(aason_context) == 64);
+
+static uint32_t		aason_utf8_byte_count(char c);
 
 static char*		aason_to_string_int(char* out, int64_t value);
 static char*		aason_to_string_bool(char* out, bool value);

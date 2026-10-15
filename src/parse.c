@@ -40,7 +40,7 @@ aason_context* aason_read(const aason_read_desc* desc)
 
 	void* frame = scratch.push(scratch.self);
 
-	aason_files files = aason_preparse(&scratch, &temp_ctx.allocator, &read_interface, desc->path);
+	aason_files files = aason_preparse(&temp_ctx, &scratch, &temp_ctx.allocator, &read_interface, desc->path);
 	if (files.count)
 	{
 		temp_ctx.file_count = files.count;

@@ -95,7 +95,8 @@ static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type er
 	longjmp(tokeniser->jmp_ctx, 1);
 }
 
-static int64_t aason_utf8_byte_count(char c)
+// TODO: Move
+static uint32_t aason_utf8_byte_count(char c)
 {
 	if ((c & 0b11110000) == 0b11110000)
 		return 4;
@@ -109,152 +110,106 @@ static int64_t aason_utf8_byte_count(char c)
 
 static char aason_tokenise_get_char(aason_tokeniser* tokeniser)
 {
-	char c;
-
-	if (tokeniser->next == tokeniser->end)
-	{
-		// Check for EOF before we start dereferencing invalid memory
-		c = aason_tokenise_char_eof;
-	}
-	else if (tokeniser->next > tokeniser->end)
-	{
-		// This means invalid UTF-8 sequence
-		aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid UTF-8 character");
-	}
-	else
+	for (;;)
 	{
 		// These updates are delayed to make delegation of parsing to other functions easier
 		tokeniser->current = tokeniser->next;
 		tokeniser->line = tokeniser->next_line;
 		tokeniser->column = tokeniser->next_column;
-	
-		// This should handle simple UTF-8 but we need a way to determine non-printable characters
-		c = *tokeniser->current;
-		const int64_t byte_count = aason_utf8_byte_count(c);
-		tokeniser->next += byte_count;
-	
-		if (c < 32)
+
+		const char c = *tokeniser->next;
+
+		if (c == aason_char_op_skip_line_short)
 		{
-			if (c == '\t')
-			{
-				const uint32_t tab_size = tokeniser->ctx->tab_size - ((tokeniser->next_column - 1) % tokeniser->ctx->tab_size);
-				tokeniser->next_column += tab_size;
-			}
-			else if (c == '\r')
-			{
-				// Ignore
-			}
-			else if (c == '\n')
-			{
-				++tokeniser->next_line;
-				tokeniser->next_column = 1;
-			}
-			else if (c == aason_tokenise_char_jump)
-			{
-				c = aason_tokenise_char_jump;
-			}
-			else
-			{
-				// Invalid control character
-				aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid control character '{i32}'", c);
-			}
+			tokeniser->next += (uint8_t)tokeniser->next[1];
+			tokeniser->c = ' ';
+
+			return tokeniser->c;
 		}
-		else if (c == 127)
+		else if (c == aason_char_op_skip_line_long)
 		{
-			// Delete character
-			aason_tokenise_error(tokeniser, aason_error_invalid_char, "Invalid delete character");
+			uint32_t byte_count;
+			memcpy(&byte_count, tokeniser->next + 1, 4);
+
+			tokeniser->next += byte_count;
+			tokeniser->c = ' ';
+
+			return tokeniser->c;
+		}
+		else if (c == aason_char_op_skip_columns_short)
+		{
+			tokeniser->next_column += (uint8_t)tokeniser->next[2];
+			tokeniser->next += (uint8_t)tokeniser->next[1];
+			tokeniser->c = ' ';
+
+			return tokeniser->c;
+		}
+		else if (c == aason_char_op_skip_columns_long)
+		{
+			uint32_t byte_count;
+			memcpy(&byte_count, tokeniser->next + 1, 4);
+
+			uint32_t column_count;
+			memcpy(&column_count, tokeniser->next + 5, 4);
+
+			tokeniser->next_column += column_count;
+			tokeniser->next += byte_count;
+			tokeniser->c = ' ';
+
+			return tokeniser->c;
+		}
+		else if (c == 0)
+		{
+			tokeniser->c = aason_char_op_eof;
+			return tokeniser->c;
+		}
+
+		tokeniser->next += aason_utf8_byte_count(c);
+
+		if (c == '\t')
+		{
+			const uint32_t tab_size = tokeniser->ctx->tab_size;
+			tokeniser->next_column += tab_size - ((tokeniser->next_column - 1) % tab_size);
+		}
+		else if (c == '\n')
+		{
+			++tokeniser->next_line;
+			tokeniser->next_column = 1;
+		}
+		else if (c == '\r')
+		{
+			// Ignore
+		}
+		else if (c == aason_char_op_jump)
+		{
+			// ???
 		}
 		else
 		{
 			++tokeniser->next_column;
 		}
+
+		tokeniser->c = c;
+		return c;
 	}
-
-	tokeniser->c = c;
-
-	return c;
-}
-
-static char aason_tokenise_skip_comments(aason_tokeniser* tokeniser)
-{
-	char c = aason_tokenise_get_char(tokeniser);
-	if (c == '/')
-	{
-		// Skip past the end of the line for C++ comments
-		do
-		{
-			c = aason_tokenise_get_char(tokeniser);
-		} while (c != '\n' && c != aason_tokenise_char_eof);
-
-		// Consume final '\n'
-		if (c == '\n')
-			c = aason_tokenise_get_char(tokeniser);
-	}
-	else if (c == '*')
-	{
-		char prev = 0;
-		uint32_t depth = 1;
-
-		for (;;)
-		{
-			c = aason_tokenise_get_char(tokeniser);
-			if (prev == '*' && c == '/')
-			{
-				if (--depth == 0)
-				{
-					// Consume final /
-					c = aason_tokenise_get_char(tokeniser);
-					break;
-				}
-
-				prev = 0; // Prevent misinterpreting string "*/*" as "*/" and "/*"
-			}
-			else if (prev == '/' && c == '*')
-			{
-				++depth;
-				prev = 0; // Prevent misinterpreting string "/*/" as "/*" and "*/"
-			}
-			else if (c == aason_tokenise_char_eof)
-			{
-				aason_tokenise_error(tokeniser, aason_error_invalid_char, "Unexpected end-of-file");
-			}
-
-			prev = c;
-		}
-	}
-	else
-	{
-		aason_tokenise_error(tokeniser, aason_error_invalid_char, "Expected '/' or '*' for comment");
-	}
-
-	return c;
 }
 
 static char aason_tokenise_skip_whitespace(aason_tokeniser* tokeniser)
 {
 	char c = tokeniser->c;
 
-	for (;;)
-	{
-		switch (c)
-		{
-		case ' ':
-		case '\r':
-		case '\t':
-		case '\n':
-			c = aason_tokenise_get_char(tokeniser);
-			break;
-		case '/':
-			c = aason_tokenise_skip_comments(tokeniser);
-			break;
-		default:
-			return c;
-		}
-	}
+	while (c == ' ' || c == '\t' || c == '\n' || c == '\r')
+		c = aason_tokenise_get_char(tokeniser);
 
-	//rgs_unreachable();
+	return c;
 }
 
+/*
+	TODO:
+	* Preparse has already validated the string and knows how long it is.
+	* It could add a new char op type that designates the end of the string.
+	* This would allow for a tiny loop checking for a single value.
+*/
 static aason_token_type aason_tokenise_parse_str(aason_tokeniser* tokeniser)
 {
 	bool inside_escape = false;
@@ -271,7 +226,7 @@ static aason_token_type aason_tokenise_parse_str(aason_tokeniser* tokeniser)
 		{
 			break;
 		}
-		else if (c == aason_tokenise_char_eof)
+		else if (c == aason_char_op_eof)
 		{
 			aason_tokenise_error(tokeniser, aason_error_invalid_char, "Unexpected end-of-file");
 		}
@@ -415,9 +370,7 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 	aason_tokenise_get_char(&tokeniser);
 	for (;;)
 	{
-		char c = aason_tokenise_skip_whitespace(&tokeniser);
-		if (c == '/')
-			c = aason_tokenise_skip_comments(&tokeniser);
+		const char c = aason_tokenise_skip_whitespace(&tokeniser);
 
 		aason_token* token = aason_allocate_token(scratch, tokens);
 		token->file_index = file_index;
@@ -478,17 +431,20 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 		{
 			token->type = aason_tokenise_parse_identifier(&tokeniser);
 		}
-		else if (c == aason_tokenise_char_jump)
+		else if (c == aason_char_op_jump)
 		{
 			token->type = aason_token_type_jump;
+
 			uint32_t file_index;
 			memcpy(&file_index, tokeniser.current + 1, 4);
 			token->count = file_index; // TODO: Don't re-use this variable
-			tokeniser.next += 5;
-			tokeniser.current = tokeniser.next;
+
+			tokeniser.next += 4;
+			tokeniser.next_column += 4;
+
 			aason_tokenise_get_char(&tokeniser);
 		}
-		else if (c == aason_tokenise_char_eof)
+		else if (c == aason_char_op_eof)
 		{
 			token->type = aason_token_type_eof;
 			break;
