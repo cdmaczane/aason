@@ -162,6 +162,11 @@ typedef struct
 	size_t							constructor_count;
 } aason_write_desc;
 
+aason_context*	aason_preparse(const aason_read_desc* desc);
+bool			aason_parse(aason_context* ctx);
+const char*		aason_get_path(const aason_context* ctx, size_t index);
+size_t			aason_get_path_count(const aason_context* ctx);
+
 aason_context* aason_read(const aason_read_desc* desc);
 aason_context* aason_write(const aason_write_desc* desc);
 void aason_destroy(aason_context* ctx);

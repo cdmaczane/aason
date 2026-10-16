@@ -460,7 +460,7 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 	return true;
 }
 
-static aason_tokens aason_tokenise(aason_context* ctx, aason_allocator* scratch)
+static aason_tokens aason_run_tokenise_pass(aason_context* ctx, aason_allocator* scratch)
 {
 	aason_tokens tokens = {};
 

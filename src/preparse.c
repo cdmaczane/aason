@@ -482,7 +482,7 @@ static uint32_t aason_preparse_recursive(aason_context* ctx, aason_allocator* sc
 	return UINT32_MAX;
 }
 
-aason_files aason_preparse(aason_context* ctx, aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, const char* path)
+aason_files aason_run_preparse_pass(aason_context* ctx, aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, const char* path)
 {
 	aason_files files = {};
 	aason_preparse_recursive(ctx, scratch, allocator, read_interface, &files, path);

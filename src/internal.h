@@ -170,6 +170,25 @@ typedef struct
 	uint32_t child_index;
 } aason_stack_entry;
 
+typedef void (*aason_read_constructor_callback)(aason_context* ctx, void* value, const aason_arg* args, size_t count);
+typedef void (*aason_write_constructor_callback)(aason_context* ctx, void* value);
+
+typedef struct
+{
+	uint32_t							count;
+
+	// The following are arrays of size count
+	const char**						names;
+	uint32_t*							hashes;
+	uint8_t*							arg_counts;
+	uint32_t*							arg_indices;
+	aason_read_constructor_callback*	read_callbacks;
+	aason_write_constructor_callback*	write_callbacks;
+
+	uint8_t*							args;
+	aason_arg*							temp_args;
+} aason_constructors;
+
 // TODO: Allow mechanism to get line and column of last element read for external error handling.
 // TODO: Can probably compact as some data will no longer be required once error has occurred.
 // TODO: Consider renaming elements within objects to "fields".
@@ -182,12 +201,12 @@ struct aason_context
 	bool							reading;
 	bool							allow_trailing_commas;
 	uint32_t						stack_depth;
-	uint32_t						constructor_count;
 	aason_locale					locale;
 	aason_format_callback			format;
 	aason_error_interface			error_interface;
+	aason_allocator					scratch;
 	aason_allocator					allocator;
-	const aason_constructor_desc**	constructors;
+	aason_constructors*				constructors;
 
 	union
 	{

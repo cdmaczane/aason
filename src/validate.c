@@ -90,37 +90,45 @@ static aason_token* aason_validate_expect_either_token(aason_validator* validato
 	return token;
 }
 
+static uint32_t aason_validate_find_constructor(aason_validator* validator, aason_token* token, const char* name)
+{
+	const aason_constructors* constructors = validator->token_state.ctx->constructors;
+	if (constructors)
+	{
+		for (uint32_t i = 0; i < constructors->count; ++i)
+		{
+			if (strcmp(name, constructors->names[i]) == 0)
+				return i;
+		}
+	}
+
+	aason_validate_error(validator, aason_error_unknown_constructor, token,
+		"Unknown constructor '%s'", name
+	);
+
+	return UINT32_MAX;
+}
+
 static void aason_validate_constructor(aason_validator* validator, aason_token* token)
 {
 	char* name = token->begin;
 	const size_t len = token->end - token->begin;
 	name[len] = 0; // Null terminate
 
-	uint32_t index = 0;
-	const aason_constructor_desc* constructor = nullptr;
-	for (index = 0; index < validator->token_state.ctx->constructor_count; ++index)
-	{
-		if (strcmp(name, validator->token_state.ctx->constructors[index]->name) == 0)
-		{
-			constructor = validator->token_state.ctx->constructors[index];
-			break;
-		}
-	}
-
-	if (!constructor)
-	{
-		aason_validate_error(validator, aason_error_unknown_constructor, token,
-			"Unknown constructor '%s'", name
-		);
-	}
-
+	const uint32_t index = aason_validate_find_constructor(validator, token, name);
 	token->constructor_index = index;
 
 	aason_validate_expect_token(validator, aason_token_type_open_paren);
 
-	for (uint32_t i = 0; i < constructor->count; ++i)
+	const aason_constructors* constructors = validator->token_state.ctx->constructors;
+	const uint8_t arg_count = constructors->arg_counts[index];
+	const uint32_t args_index = constructors->arg_indices[index];
+	const uint8_t* args = constructors->args + args_index;
+
+	for (uint8_t i = 0; i < arg_count; ++i)
 	{
-		switch (constructor->args[i])
+		const aason_arg_type type = args[i];
+		switch (type)
 		{
 		case aason_arg_type_str:
 			aason_validate_expect_token(validator, aason_token_type_str);
@@ -145,7 +153,7 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 			break;
 		}
 
-		if (i < constructor->count - 1)
+		if (i < constructors->count - 1)
 			aason_validate_expect_token(validator, aason_token_type_comma); // Skip comma token
 
 		++token->count;
@@ -295,7 +303,7 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 	}
 }
 
-static bool aason_validate(aason_context* ctx, aason_tokens* tokens)
+static bool aason_run_validate_pass(aason_context* ctx, aason_tokens* tokens)
 {
 	aason_validator validator = {
 		.token_state	= {

@@ -367,44 +367,46 @@ static bool aason_read_constructor_common(aason_context* ctx, const aason_elemen
 
 	if (element)
 	{
-		aason_assert(element->constructor_index < ctx->constructor_count);
+		const uint32_t constructor_index = element->constructor_index;
+		aason_assert(constructor_index < ctx->constructors->count);
 
-		const aason_constructor_desc* constructor = ctx->constructors[element->constructor_index];
-		aason_assert(strcmp(type, constructor->name) == 0);
-
-		// TODO: Get rid of allocation
-		aason_arg* args = alloca(sizeof(aason_arg) * constructor->count);
+		const aason_constructors* constructors = ctx->constructors;
+		const uint8_t arg_count = constructors->arg_counts[constructor_index];
+		const uint32_t args_index = constructors->arg_indices[constructor_index];
+		const uint8_t* args = constructors->args + args_index;
+		aason_assert(strcmp(type, constructors->names[constructor_index]) == 0);
 
 		const aason_element* children = ctx->elements + element->constructor_value.first_child;
-		for (uint32_t i = 0; i < constructor->count; ++i)
+		for (uint8_t i = 0; i < arg_count; ++i)
 		{
 			const char* buffer = aason_read_get_value_buffer(ctx, &children[i]);
 
-			args[i].type = constructor->args[i];
+			aason_arg* arg = &constructors->temp_args[i];
+			arg->type = args[i];
 
-			switch (constructor->args[i])
+			switch (arg->type)
 			{
 			case aason_arg_type_str:
-				args[i].str_value = buffer + children[i].str_value.offset;
+				arg->str_value = buffer + children[i].str_value.offset;
 				break;
 			case aason_arg_type_bin:
 			case aason_arg_type_dec:
 			case aason_arg_type_hex:
-				args[i].int_value = children[i].int_value;
+				arg->int_value = children[i].int_value;
 				break;
 			case aason_arg_type_bool:
-				args[i].bool_value = children[i].bool_value;
+				arg->bool_value = children[i].bool_value;
 				break;
 			case aason_arg_type_enum:
-				args[i].enum_value = buffer + children[i].enum_value.offset;
+				arg->enum_value = buffer + children[i].enum_value.offset;
 				break;
 			case aason_arg_type_float:
-				args[i].float_value = children[i].float_value;
+				arg->float_value = children[i].float_value;
 				break;
 			}
 		}
 
-		constructor->read(ctx, value, args, constructor->count);
+		constructors->read_callbacks[constructor_index](ctx, value, constructors->temp_args, arg_count);
 
 		return true;
 	}

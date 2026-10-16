@@ -252,7 +252,7 @@ static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token*
 
 static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	aason_assert(token->constructor_index < finaliser->token_state.ctx->constructor_count);
+	aason_assert(token->constructor_index < finaliser->token_state.ctx->constructors->count);
 
 	element->type = aason_type_constructor;
 	element->constructor_index = token->constructor_index;
@@ -277,7 +277,7 @@ static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_t
 	aason_get_next_token(&finaliser->token_state); // Skip close paren
 }
 
-static bool aason_finalise(aason_context* ctx, aason_tokens* tokens)
+static bool aason_run_finalise_pass(aason_context* ctx, aason_tokens* tokens)
 {
 	aason_finaliser finaliser = {
 		.token_state = {

@@ -129,6 +129,7 @@ void aason_destroy(aason_context* ctx)
 
 		if (ctx->reading)
 		{
+			aason_free(&ctx->allocator, ctx->stack);
 			for (uint32_t i = 0; i < ctx->file_count; ++i)
 				aason_free(&ctx->allocator, ctx->files[i].buffer);
 		}
