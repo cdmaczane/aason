@@ -10,7 +10,7 @@ bool aason_archive_array_enter_object(aason_context* ctx)
 void aason_archive_array_str(aason_context* ctx, char** value)
 {
 	if (ctx->reading)
-		aason_read_array_str(ctx, (const char**)value, nullptr);
+		aason_read_array_str(ctx, (const char**)value, NULL);
 	else
 		aason_write_array_str(ctx, *value);
 }
@@ -80,7 +80,7 @@ bool aason_archive_object_str(aason_context* ctx, const char* key, char** value,
 
 	if (ctx->reading)
 	{
-		if (!aason_read_object_str(ctx, key, aason_optional, (const char**)value, nullptr))
+		if (!aason_read_object_str(ctx, key, aason_optional, (const char**)value, NULL))
 		{
 			*value = (char*)default_value;
 			return false;

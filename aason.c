@@ -1,11 +1,3 @@
-#ifndef aason_assert
-	#define aason_assert assert
-#endif
-
-#ifndef AASON_HANDLE_LOCALE
-	#define AASON_HANDLE_LOCALE 0
-#endif
-
 #include <stdio.h>
 #include <float.h>
 #include <errno.h>
@@ -17,6 +9,14 @@
 #include <inttypes.h>
 
 #include "aason.h"
+
+#ifndef aason_assert
+	#define aason_assert assert
+#endif
+
+#ifndef AASON_HANDLE_LOCALE
+	#define AASON_HANDLE_LOCALE 0
+#endif
 
 #if AASON_HANDLE_LOCALE
 	#include <locale.h>
@@ -36,23 +36,18 @@
 	#endif
 #else
 	typedef void* aason_locale;
-	#define aason_new_locale() nullptr
+	#define aason_new_locale() NULL
 	#define aason_free_locale(locale) do {} while (0)
 	#define aason_strtof(str, end, locale) strtof(str, end)
 	#define aason_strtod(str, end, locale) strtod(str, end)
 #endif
 static_assert(sizeof(aason_locale) == sizeof(void*), "");
 
-#include "src/internal.h"
-
-#if !defined(__cplusplus) || __STDC_VERSION__ < 202311L
-	#define nullptr ((void*)0)
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#include "src/internal.h"
 #include "src/archive.c"
 #include "src/preparse.c"
 #include "src/tokenise.c"
@@ -150,8 +145,4 @@ bool aason_writing(const aason_context* ctx)
 
 #ifdef __cplusplus
 }
-#endif
-
-#if !defined(__cplusplus) && __STDC_VERSION__ < 202311L
-	#undef nullptr
 #endif

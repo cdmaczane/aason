@@ -141,7 +141,7 @@ aason_context* aason_write(const aason_write_desc* desc)
 		// TODO: Report error
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 void aason_write_array_enter_object(aason_context* ctx)

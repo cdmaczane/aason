@@ -97,7 +97,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 					key, aason_type_strings[object_element->type], aason_type_strings[type]
 				);
 
-				return nullptr;
+				return NULL;
 			}
 		}
 	}
@@ -125,7 +125,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 						key, aason_type_strings[element->type], aason_type_strings[type]
 					);
 	
-					return nullptr;
+					return NULL;
 				}
 			}
 		}
@@ -139,7 +139,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 		);
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 static const aason_element* aason_read_get_next_array_element(aason_context* ctx, aason_type type)
@@ -178,7 +178,7 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 		}
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 static bool aason_read_enter_object_common(aason_context* ctx, const aason_element* element)

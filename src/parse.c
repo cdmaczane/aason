@@ -99,7 +99,7 @@ static size_t aason_get_constructors_allocation_size(aason_constructor_sizes siz
 static aason_constructors* aason_copy_constructors(uint8_t* alloc, aason_constructor_sizes sizes, const aason_constructor_desc* const* descs, size_t count, bool write)
 {
 	if (count == 0)
-		return nullptr;
+		return NULL;
 
 	aason_constructors* constructors = (aason_constructors*)alloc;
 	constructors->count = (uint32_t)count;
@@ -119,13 +119,13 @@ static aason_constructors* aason_copy_constructors(uint8_t* alloc, aason_constru
 
 	if (write)
 	{
-		constructors->read_callbacks = nullptr;
+		constructors->read_callbacks = NULL;
 		constructors->write_callbacks = (aason_write_constructor_callback*)alloc;
 	}
 	else
 	{
 		constructors->read_callbacks = (aason_read_constructor_callback*)alloc;
-		constructors->write_callbacks = nullptr;
+		constructors->write_callbacks = NULL;
 	}
 	alloc += aason_align_size(sizeof(void*) * count);
 
@@ -171,7 +171,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 	aason_assert(desc->tab_size <= 8);
 	aason_assert(desc->constructor_count <= UINT32_MAX);
 
-	aason_context* ctx = nullptr;
+	aason_context* ctx = NULL;
 
 	// Use 4-space tabs by default
 	const uint32_t tab_size = desc->tab_size ? desc->tab_size : 4;
@@ -313,5 +313,5 @@ aason_context* aason_read(const aason_read_desc* desc)
 			aason_destroy(ctx);
 	}
 
-	return nullptr;
+	return NULL;
 }

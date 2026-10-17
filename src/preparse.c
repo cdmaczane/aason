@@ -51,7 +51,7 @@ static aason_file* aason_load_stream(
 			// TODO: Turn into error
 			aason_assert(!files->files[i].inside);
 
-			return nullptr;
+			return NULL;
 		}
 	}
 
@@ -99,7 +99,7 @@ static aason_file* aason_load_stream(
 		// TODO: Report error
 	}
 
-	return nullptr;
+	return NULL;
 }
 
 static char aason_preparse_get_char_ascii(aason_preparser* preparser)
