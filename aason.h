@@ -1,5 +1,27 @@
 #pragma once
 
+// Check compiler language version is supported
+#ifdef __cplusplus
+	// MSVC Still reports C++98 without /Zc:__cplusplus
+	#ifdef _MSVC_LANG
+		#if _MSVC_LANG < 201103L
+			#error AASON requires C++11 of later
+		#endif
+	#elif __cplusplus < 201103L
+		#error AASON requires C++11 of later
+	#endif
+#elif __STDC_VERSION__ < 201112L
+	#error AASON requires C11 or later
+#endif
+
+#ifdef __cplusplus
+	#define aason_noreturn [[noreturn]]
+#elif __STDC_VERSION__ >= 202311L
+	#define aason_noreturn [[noreturn]]
+#else
+	#define aason_noreturn _Noreturn // Deprecated in C23
+#endif
+
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>

@@ -12,9 +12,11 @@ typedef struct
 	jmp_buf					jmp_ctx;
 } aason_preparser;
 
-static void aason_preparse_error(aason_preparser* preparser, aason_error_type error, const char* fmt, ...)
+aason_noreturn static void aason_preparse_error(aason_preparser* preparser, aason_error_type error, const char* fmt, ...)
 {
 	aason_assert(false);
+
+	longjmp(preparser->jmp_ctx, 1);
 }
 
 static aason_file* aason_allocate_file(aason_allocator* scratch, aason_files* files)
