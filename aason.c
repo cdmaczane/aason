@@ -1,5 +1,4 @@
 #ifndef aason_assert
-	#include <assert.h>
 	#define aason_assert assert
 #endif
 
@@ -7,18 +6,15 @@
 	#define AASON_HANDLE_LOCALE 0
 #endif
 
+#include <stdio.h>
 #include <float.h>
 #include <errno.h>
+#include <assert.h>
 #include <string.h>
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <inttypes.h>
-
-// TODO: Move into `#if AASON_HANDLE_LOCALE` scope once custom parsers are added
-#if defined(_WIN32)
-	#include <stdio.h>
-#endif
 
 #include "aason.h"
 
@@ -45,7 +41,7 @@
 	#define aason_strtof(str, end, locale) strtof(str, end)
 	#define aason_strtod(str, end, locale) strtod(str, end)
 #endif
-static_assert(sizeof(aason_locale) == sizeof(void*));
+static_assert(sizeof(aason_locale) == sizeof(void*), "");
 
 #include "src/internal.h"
 

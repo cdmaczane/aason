@@ -19,7 +19,7 @@ static const char* aason_token_type_strings[] = {
 	"}",
 	"JMP"
 };
-static_assert(sizeof(aason_token_type_strings) / sizeof(const char*) == aason_token_type_count);
+static_assert(sizeof(aason_token_type_strings) / sizeof(const char*) == aason_token_type_count, "");
 
 typedef struct
 {

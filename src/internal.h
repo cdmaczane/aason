@@ -68,7 +68,7 @@ typedef struct
 	uint32_t			line;
 	uint32_t			column;
 } aason_token;
-static_assert(sizeof(aason_token) == 32);
+static_assert(sizeof(aason_token) == 32, "");
 
 typedef struct
 {
@@ -162,7 +162,7 @@ typedef struct
 		float			float_value;
 	};
 } aason_element;
-static_assert(sizeof(aason_element) == 32);
+static_assert(sizeof(aason_element) == 32, "");
 
 typedef struct
 {
