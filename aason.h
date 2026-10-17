@@ -61,28 +61,28 @@ typedef struct
 
 typedef struct
 {
-	void*	self;
-	void*	(*open)(void* self, const char* path, size_t* size);
-	void	(*read)(void* self, void* stream, void* buffer, size_t offset, size_t size);
-	void	(*close)(void* self, void* stream);
+	void*	user_data;
+	void*	(*open)(void* user_data, const char* path, size_t* size);
+	void	(*read)(void* user_data, void* stream, void* buffer, size_t offset, size_t size);
+	void	(*close)(void* user_data, void* stream);
 } aason_read_interface;
 
 typedef struct
 {
-	void*	self;
-	void*	(*open)(void* self, const char* path);
-	void	(*write)(void* self, void* stream, const void* buffer, size_t size);
-	void	(*close)(void* self, void* stream);
+	void*	user_data;
+	void*	(*open)(void* user_data, const char* path);
+	void	(*write)(void* user_data, void* stream, const void* buffer, size_t size);
+	void	(*close)(void* user_data, void* stream);
 } aason_write_interface;
 
 typedef struct
 {
-	void*	self;
-	void*	(*alloc)(void* self, size_t size, size_t align, const char* function, const char* file, int line);
-	void*	(*realloc)(void* self, void* ptr, size_t size, size_t align, const char* function, const char* file, int line);
-	void	(*free)(void* self, void* ptr, const char* function, const char* file, int line);
-	void*	(*push)(void* self);
-	void	(*pop)(void* self, void* frame);
+	void*	user_data;
+	void*	(*alloc)(void* user_data, size_t size, size_t align, const char* function, const char* file, int line);
+	void*	(*realloc)(void* user_data, void* ptr, size_t size, size_t align, const char* function, const char* file, int line);
+	void	(*free)(void* user_data, void* ptr, const char* function, const char* file, int line);
+	void*	(*push)(void* user_data);
+	void	(*pop)(void* user_data, void* frame);
 } aason_allocator;
 
 typedef enum

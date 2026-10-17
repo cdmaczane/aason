@@ -55,7 +55,7 @@ static aason_file* aason_load_stream(
 
 	// Not found so load
 	size_t file_size;
-	void* stream = read_interface->open(read_interface->self, path, &file_size);
+	void* stream = read_interface->open(read_interface->user_data, path, &file_size);
 	if (stream)
 	{
 		if (file_size)
@@ -72,8 +72,8 @@ static aason_file* aason_load_stream(
 				file->offset = (uint32_t)path_size;
 
 				memcpy(buffer, path, path_size);
-				read_interface->read(read_interface->self, stream, buffer + path_size, 0, file_size);
-				read_interface->close(read_interface->self, stream);
+				read_interface->read(read_interface->user_data, stream, buffer + path_size, 0, file_size);
+				read_interface->close(read_interface->user_data, stream);
 
 				// Null terminate file data to make parsing simpler
 				buffer[path_size + file_size] = 0;
@@ -90,7 +90,7 @@ static aason_file* aason_load_stream(
 			// TODO: Report error
 		}
 
-		read_interface->close(read_interface->self, stream);
+		read_interface->close(read_interface->user_data, stream);
 	}
 	else
 	{

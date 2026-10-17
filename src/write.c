@@ -25,7 +25,7 @@ static void aason_write_flush(aason_context* ctx)
 {
 	if (ctx->committed)
 	{
-		ctx->write_interface.write(ctx->write_interface.self, ctx->stream, ctx->buffer, ctx->committed);
+		ctx->write_interface.write(ctx->write_interface.user_data, ctx->stream, ctx->buffer, ctx->committed);
 		ctx->committed = 0;
 	}
 }
@@ -33,7 +33,7 @@ static void aason_write_flush(aason_context* ctx)
 static void aason_write_str(aason_context* ctx, const char* str, size_t length)
 {
 	aason_write_flush(ctx);
-	ctx->write_interface.write(ctx->write_interface.self, ctx->stream, str, length);
+	ctx->write_interface.write(ctx->write_interface.user_data, ctx->stream, str, length);
 }
 
 static char* aason_write_reserve(aason_context* ctx, size_t size)
@@ -106,7 +106,7 @@ aason_context* aason_write(const aason_write_desc* desc)
 	aason_allocator allocator = *desc->allocator;
 	aason_write_interface write_interface = *desc->write_interface;
 
-	void* stream = write_interface.open(write_interface.self, desc->path);
+	void* stream = write_interface.open(write_interface.user_data, desc->path);
 	if (stream)
 	{
 		char* buffer = aason_alloc(&allocator, desc->buffer_size);
@@ -133,7 +133,7 @@ aason_context* aason_write(const aason_write_desc* desc)
 		}
 		else
 		{
-			write_interface.close(write_interface.self, stream);
+			write_interface.close(write_interface.user_data, stream);
 		}
 	}
 	else

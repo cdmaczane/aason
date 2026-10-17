@@ -200,7 +200,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 
 	aason_read_interface read_interface = *desc->read_interface;
 
-	void* frame = temp_ctx.scratch.push(temp_ctx.scratch.self);
+	void* frame = temp_ctx.scratch.push(temp_ctx.scratch.user_data);
 
 	aason_files files = aason_run_preparse_pass(&temp_ctx, &temp_ctx.scratch, &temp_ctx.allocator, &read_interface, desc->path);
 	if (files.count)
@@ -243,7 +243,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 		aason_free(&temp_ctx.scratch, files.files);
 	}
 
-	temp_ctx.scratch.pop(temp_ctx.scratch.self, frame);
+	temp_ctx.scratch.pop(temp_ctx.scratch.user_data, frame);
 
 	return ctx;
 }
@@ -252,7 +252,7 @@ bool aason_parse(aason_context* ctx)
 {
 	bool result = false;
 
-	void* frame = ctx->scratch.push(ctx->scratch.self);
+	void* frame = ctx->scratch.push(ctx->scratch.user_data);
 
 	aason_tokens tokens = aason_run_tokenise_pass(ctx, &ctx->scratch);
 	if (ctx->error == aason_error_none)
@@ -286,7 +286,7 @@ bool aason_parse(aason_context* ctx)
 	}
 
 	aason_free(&ctx->scratch, tokens.tokens);
-	ctx->scratch.pop(ctx->scratch.self, frame);
+	ctx->scratch.pop(ctx->scratch.user_data, frame);
 
 	return result;
 }

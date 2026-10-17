@@ -136,7 +136,7 @@ void aason_destroy(aason_context* ctx)
 		else
 		{
 			aason_write_flush(ctx);
-			ctx->write_interface.close(ctx->write_interface.self, ctx->stream);
+			ctx->write_interface.close(ctx->write_interface.user_data, ctx->stream);
 			aason_free(&ctx->allocator, ctx->buffer);
 		}
 
