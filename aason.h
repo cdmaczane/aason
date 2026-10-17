@@ -131,15 +131,12 @@ typedef struct
 	void					(*write)(aason_context* ctx, void* value);
 } aason_constructor_desc;
 
-typedef void (*aason_format_callback)(char* out, size_t size, const char* format, va_list args);
-
 typedef struct
 {
 	const char*						path;
 	aason_mode						mode;
 	bool							allow_trailing_commas;
 	uint32_t						tab_size;
-	aason_format_callback			format;
 	const aason_error_interface*	error_interface;
 	const aason_read_interface*		read_interface;
 	const aason_allocator*			allocator;
@@ -154,7 +151,6 @@ typedef struct
 	const char*						path;
 	uint32_t						tab_size;
 	size_t							buffer_size;
-	aason_format_callback			format;
 	const aason_error_interface*	error_interface;
 	const aason_write_interface*	write_interface;
 	const aason_allocator*			allocator;

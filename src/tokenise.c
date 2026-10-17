@@ -79,7 +79,7 @@ static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type er
 	{
 		va_list args;
 		va_start(args, fmt);
-		aason_format_string(tokeniser->ctx, buffer, sizeof(buffer), fmt, args);
+		vsnprintf(buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
 		tokeniser->ctx->error_interface.error(

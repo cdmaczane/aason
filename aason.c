@@ -115,12 +115,6 @@ static aason_token* aason_get_next_token(aason_token_state* state)
 	return token;
 }
 
-static void aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args)
-{
-	if (ctx->format)
-		ctx->format(out, size, format, args);
-}
-
 void aason_destroy(aason_context* ctx)
 {
 	if (ctx)

@@ -46,7 +46,7 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 	{
 		va_list args;
 		va_start(args, fmt);
-		aason_format_string(validator->token_state.ctx, buffer, sizeof(buffer), fmt, args);
+		vsnprintf(buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
 		validator->token_state.ctx->error_interface.error(

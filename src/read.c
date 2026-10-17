@@ -27,7 +27,7 @@ static void aason_read_error(aason_context* ctx, aason_error_type error, const a
 	{
 		va_list args;
 		va_start(args, fmt);
-		aason_format_string(ctx, buffer, sizeof(buffer), fmt, args);
+		vsnprintf(buffer, sizeof(buffer), fmt, args);
 		va_end(args);
 	
 		ctx->error_interface.error(
@@ -240,7 +240,7 @@ static bool aason_read_fixed_str_common(aason_context* ctx, const aason_element*
 	{
 		const char* buffer = aason_read_get_value_buffer(ctx, element);
 		const char* str = buffer + element->str_value.offset;
-		const int64_t len = element->str_value.len;
+		const size_t len = element->str_value.len;
 
 		if (len < buffer_size)
 		{
@@ -257,7 +257,7 @@ static bool aason_read_fixed_str_common(aason_context* ctx, const aason_element*
 		else
 		{
 			aason_read_error(ctx, aason_error_buffer_too_small, element,
-				"String of length %" PRId64 " exceeds fixed-sized buffer capacity of %" PRId64,
+				"String of length %zu exceeds fixed-sized buffer capacity of %zu",
 				len, buffer_size
 			);
 		}
@@ -476,7 +476,7 @@ bool aason_read_object_enter_array(aason_context* ctx, const char* key, aason_fl
 		if (element->array_value.count > max_size)
 		{
 			aason_read_error(ctx, aason_error_array_too_large, element,
-				"Array '%s' size of %" PRIu32 " exceeds maximum of %" PRId64,
+				"Array '%s' size of %" PRIu32 " exceeds maximum of %zu",
 				key, element->array_value.count, max_size
 			);
 

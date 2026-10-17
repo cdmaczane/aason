@@ -202,7 +202,6 @@ struct aason_context
 	bool							allow_trailing_commas;
 	uint32_t						stack_depth;
 	aason_locale					locale;
-	aason_format_callback			format;
 	aason_error_interface			error_interface;
 	aason_allocator					scratch;
 	aason_allocator					allocator;
@@ -249,7 +248,5 @@ static bool			aason_from_string_bin(const char* begin, const char* end, int64_t*
 static bool			aason_from_string_dec(const char* begin, const char* end, int64_t* value);
 static bool			aason_from_string_hex(const char* begin, const char* end, int64_t* value);
 static bool			aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
-
-static void			aason_format_string(aason_context* ctx, char* out, size_t size, const char* format, va_list args);
 
 static aason_token*	aason_get_next_token(aason_token_state* state);

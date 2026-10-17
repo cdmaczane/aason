@@ -185,10 +185,6 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 		.allow_trailing_commas = desc->allow_trailing_commas
 	};
 
-	// TODO: Remove
-	if (desc->format)
-		temp_ctx.format = desc->format;
-
 	if (desc->error_interface)
 		temp_ctx.error_interface = *desc->error_interface;
 
