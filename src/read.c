@@ -78,9 +78,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 
 	if (stack_depth == 0)
 	{
-		const bool skip_root_identifier = ctx->mode == aason_mode_json || !ctx->use_implicit_root;
-		if (skip_root_identifier)
-			return object_element;
+		aason_assert(ctx->mode == aason_mode_aason && ctx->use_implicit_root);
 
 		const char* key_buffer = aason_read_get_key_buffer(ctx, object_element);
 		const char* key_string = key_buffer + object_element->key_offset;
@@ -415,6 +413,75 @@ static bool aason_read_constructor_common(aason_context* ctx, const aason_elemen
 	return false;
 }
 
+bool aason_read_enter_root_array(aason_context* ctx, size_t* size, size_t max_size)
+{
+	aason_assert(ctx);
+	aason_assert(ctx->mode == aason_mode_json || !ctx->use_implicit_root);
+	aason_assert(ctx->stack_depth == 0);
+
+	const aason_element* root_element = &ctx->elements[0];
+	if (root_element->type != aason_type_array)
+	{
+		aason_read_error(ctx, aason_error_wrong_type, root_element,
+			"Root element has type '%s' instead of expected type 'array'",
+			aason_type_strings[root_element->type]
+		);
+
+		return false;
+	}
+
+	if (root_element->array_value.count > max_size)
+	{
+		aason_read_error(ctx, aason_error_array_too_large, root_element,
+			"Root array size of %" PRIu32 " exceeds maximum of %zu",
+			root_element->array_value.count, max_size
+		);
+
+		return false;
+	}
+
+	const uint32_t stack_depth = ++ctx->stack_depth;
+	aason_assert(stack_depth < ctx->max_stack_depth);
+
+	ctx->stack[stack_depth].element_index = (uint32_t)(root_element - ctx->elements);
+	ctx->stack[stack_depth].child_index = 0;
+
+	if (size)
+		*size = root_element->array_value.count;
+
+	return true;
+}
+
+bool aason_read_enter_root_object(aason_context* ctx)
+{
+	aason_assert(ctx);
+	aason_assert(ctx->mode == aason_mode_json || !ctx->use_implicit_root);
+	aason_assert(ctx->stack_depth == 0);
+
+	const aason_element* root_element = &ctx->elements[0];
+	if (root_element->type != aason_type_object)
+	{
+		aason_read_error(ctx, aason_error_wrong_type, root_element,
+			"Root element has type '%s' instead of expected type 'object'",
+			aason_type_strings[root_element->type]
+		);
+
+		return false;
+	}
+
+	return aason_read_enter_object_common(ctx, root_element);
+}
+
+void aason_read_leave_array(aason_context* ctx)
+{
+	aason_read_leave_common(ctx, aason_type_array);
+}
+
+void aason_read_leave_object(aason_context* ctx)
+{
+	aason_read_leave_common(ctx, aason_type_object);
+}
+
 bool aason_read_array_enter_object(aason_context* ctx)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_object);
@@ -551,14 +618,4 @@ bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_fl
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_constructor);
 	return aason_read_constructor_common(ctx, element, value, type);
-}
-
-void aason_read_leave_array(aason_context* ctx)
-{
-	aason_read_leave_common(ctx, aason_type_array);
-}
-
-void aason_read_leave_object(aason_context* ctx)
-{
-	aason_read_leave_common(ctx, aason_type_object);
 }
