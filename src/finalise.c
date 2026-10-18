@@ -290,7 +290,8 @@ static bool aason_run_finalise_pass(aason_context* ctx, aason_tokens* tokens)
 	{
 		aason_element* element = aason_finalise_allocate_elements(&finaliser, 1);
 
-		if (ctx->mode != aason_mode_json)
+		const bool skip_root_identifier = ctx->mode == aason_mode_json || !ctx->use_implicit_root;
+		if (!skip_root_identifier)
 			aason_finalise_init_key(&finaliser, element);
 
 		aason_token* token = aason_get_next_token(&finaliser.token_state);

@@ -78,7 +78,8 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 
 	if (stack_depth == 0)
 	{
-		if (ctx->mode == aason_mode_json)
+		const bool skip_root_identifier = ctx->mode == aason_mode_json || !ctx->use_implicit_root;
+		if (skip_root_identifier)
 			return object_element;
 
 		const char* key_buffer = aason_read_get_key_buffer(ctx, object_element);

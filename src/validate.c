@@ -317,7 +317,8 @@ static bool aason_run_validate_pass(aason_context* ctx, aason_tokens* tokens)
 
 	if (!setjmp(validator.jmp_ctx))
 	{
-		if (ctx->mode != aason_mode_json)
+		const bool skip_root_identifier = ctx->mode == aason_mode_json || !ctx->use_implicit_root;
+		if (!skip_root_identifier)
 		{
 			aason_validate_expect_token(&validator, aason_token_type_identifier);
 			aason_validate_expect_token(&validator, aason_token_type_colon);

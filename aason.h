@@ -1,5 +1,9 @@
 #pragma once
 
+#include <stdint.h>
+#include <stddef.h>
+#include <stdbool.h>
+
 // Check compiler language version is supported
 #ifdef __cplusplus
 	// MSVC Still reports C++98 without /Zc:__cplusplus
@@ -21,10 +25,6 @@
 #else
 	#define aason_noreturn _Noreturn // Deprecated in C23
 #endif
-
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -157,6 +157,7 @@ typedef struct
 {
 	const char*						path;
 	aason_mode						mode;
+	bool							use_implicit_root;
 	bool							allow_trailing_commas;
 	uint32_t						tab_size;
 	const aason_error_interface*	error_interface;

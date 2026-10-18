@@ -199,6 +199,7 @@ struct aason_context
 	uint32_t						tab_size;
 	uint8_t							mode;
 	bool							reading;
+	bool							use_implicit_root;
 	bool							allow_trailing_commas;
 	uint32_t						stack_depth;
 	aason_locale					locale;

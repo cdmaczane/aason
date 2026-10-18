@@ -1,3 +1,5 @@
+#include "aason.h"
+
 #include <stdio.h>
 #include <float.h>
 #include <errno.h>
@@ -7,8 +9,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <inttypes.h>
-
-#include "aason.h"
 
 #ifndef aason_assert
 	#define aason_assert assert

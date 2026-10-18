@@ -170,6 +170,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 	aason_assert(desc->path);
 	aason_assert(desc->tab_size <= 8);
 	aason_assert(desc->constructor_count <= UINT32_MAX);
+	aason_assert(desc->mode != aason_mode_json || !desc->use_implicit_root);
 
 	aason_context* ctx = NULL;
 
@@ -182,6 +183,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 		.tab_size = tab_size,
 		.mode = desc->mode,
 		.reading = true,
+		.use_implicit_root = desc->use_implicit_root,
 		.allow_trailing_commas = desc->allow_trailing_commas
 	};
 
