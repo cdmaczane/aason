@@ -67,6 +67,7 @@ typedef enum
 	aason_error_mismatched_object_depth,
 	// Read errors
 	aason_error_wrong_type,
+	aason_error_unused_field,
 	aason_error_end_of_array,
 	aason_error_invalid_enum,
 	aason_error_key_not_found,
@@ -158,6 +159,7 @@ typedef struct
 	const char*						path;
 	aason_mode						mode;
 	bool							use_implicit_root;
+	bool							check_unused_fields;
 	bool							allow_trailing_commas;
 	uint32_t						tab_size;
 	const aason_error_interface*	error_interface;

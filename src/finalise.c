@@ -45,6 +45,8 @@ static aason_element* aason_finalise_allocate_elements(aason_finaliser* finalise
 	aason_assert(finaliser->element_index + count <= finaliser->token_state.ctx->element_count);
 
 	aason_element* alloc = &finaliser->token_state.ctx->elements[finaliser->element_index];
+	alloc->touched = false;
+
 	finaliser->element_index += count;
 
 	return alloc;

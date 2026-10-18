@@ -74,7 +74,7 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 
 	const uint32_t element_index = ctx->stack[stack_depth].element_index;
 	aason_assert(element_index < ctx->element_count);
-	const aason_element* object_element = &ctx->elements[element_index];
+	aason_element* object_element = &ctx->elements[element_index];
 
 	if (stack_depth == 0)
 	{
@@ -87,6 +87,8 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 		{
 			if (object_element->type == type)
 			{
+				object_element->touched = true;
+
 				return object_element;
 			}
 			else
@@ -102,12 +104,12 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 	}
 	else
 	{
-		const aason_element* children = ctx->elements + object_element->object_value.first_child;
+		aason_element* children = ctx->elements + object_element->object_value.first_child;
 		const uint32_t count = object_element->object_value.count;
 
 		for (uint32_t i = 0; i < count; ++i)
 		{
-			const aason_element* element = &children[i];
+			aason_element* element = &children[i];
 			const char* key_buffer = aason_read_get_key_buffer(ctx, element);
 			const char* key_string = key_buffer + element->key_offset;
 	
@@ -115,6 +117,8 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 			{
 				if (element->type == type)
 				{
+					element->touched = true;
+
 					return element;
 				}
 				else
@@ -419,7 +423,9 @@ bool aason_read_enter_root_array(aason_context* ctx, size_t* size, size_t max_si
 	aason_assert(ctx->mode == aason_mode_json || !ctx->use_implicit_root);
 	aason_assert(ctx->stack_depth == 0);
 
-	const aason_element* root_element = &ctx->elements[0];
+	aason_element* root_element = &ctx->elements[0];
+	//root_element->touched = true;
+
 	if (root_element->type != aason_type_array)
 	{
 		aason_read_error(ctx, aason_error_wrong_type, root_element,
@@ -458,7 +464,9 @@ bool aason_read_enter_root_object(aason_context* ctx)
 	aason_assert(ctx->mode == aason_mode_json || !ctx->use_implicit_root);
 	aason_assert(ctx->stack_depth == 0);
 
-	const aason_element* root_element = &ctx->elements[0];
+	aason_element* root_element = &ctx->elements[0];
+	root_element->touched = true;
+
 	if (root_element->type != aason_type_object)
 	{
 		aason_read_error(ctx, aason_error_wrong_type, root_element,
@@ -479,6 +487,40 @@ void aason_read_leave_array(aason_context* ctx)
 
 void aason_read_leave_object(aason_context* ctx)
 {
+	if (ctx->check_unused_fields)
+	{
+		const uint32_t stack_depth = ctx->stack_depth;
+		aason_assert(stack_depth < ctx->max_stack_depth);
+
+		const uint32_t element_index = ctx->stack[stack_depth].element_index;
+		aason_assert(element_index < ctx->element_count);
+		const aason_element* object_element = &ctx->elements[element_index];
+
+		if (stack_depth == 0)
+		{
+			// It would be invalid to leave if not entered
+			aason_assert(object_element->touched);
+		}
+		else
+		{
+			aason_element* children = ctx->elements + object_element->object_value.first_child;
+			const uint32_t count = object_element->object_value.count;
+
+			for (uint32_t i = 0; i < count; ++i)
+			{
+				aason_element* element = &children[i];
+				if (!element->touched)
+				{
+					const char* child_key_string = aason_read_get_key_buffer(ctx, element) + element->key_offset;
+					aason_read_error(ctx, aason_error_unused_field, object_element,
+						"Unused field '%s'",
+						child_key_string
+					);
+				}
+			}
+		}
+	}
+
 	aason_read_leave_common(ctx, aason_type_object);
 }
 

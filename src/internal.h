@@ -116,7 +116,8 @@ typedef struct
 */
 typedef struct
 {
-	aason_type			type;
+	uint8_t				type;
+	bool				touched;
 	uint16_t			key_file_index;
 	uint16_t			value_file_index;
 	uint16_t			constructor_index;
@@ -200,6 +201,7 @@ struct aason_context
 	uint8_t							mode;
 	bool							reading;
 	bool							use_implicit_root;
+	bool							check_unused_fields;
 	bool							allow_trailing_commas;
 	uint32_t						stack_depth;
 	aason_locale					locale;

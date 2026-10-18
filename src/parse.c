@@ -184,6 +184,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 		.mode = desc->mode,
 		.reading = true,
 		.use_implicit_root = desc->use_implicit_root,
+		.check_unused_fields = desc->check_unused_fields,
 		.allow_trailing_commas = desc->allow_trailing_commas
 	};
 
