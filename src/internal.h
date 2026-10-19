@@ -29,7 +29,8 @@ typedef enum
 	aason_type_float,
 	aason_type_array,
 	aason_type_object,
-	aason_type_constructor
+	aason_type_constructor,
+	aason_type_count
 } aason_type;
 
 typedef enum

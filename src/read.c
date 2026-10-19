@@ -3,13 +3,13 @@ static const char* aason_type_strings[] = {
 	"string",
 	"int",
 	"bool",
-	"hash",
 	"enum",
 	"float",
 	"array",
 	"object",
 	"constructor"
 };
+static_assert(sizeof(aason_type_strings) / sizeof(const char*) == aason_type_count, "");
 
 static void aason_read_error(aason_context* ctx, aason_error_type error, const aason_element* element , const char* fmt, ...)
 {
