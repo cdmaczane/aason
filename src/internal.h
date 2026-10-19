@@ -223,6 +223,7 @@ struct aason_context
 			const char*				error_file;
 			uint32_t				error_line;
 			uint32_t				error_column;
+			uint32_t				error_element;
 			uint32_t				file_count;
 			aason_file*				files;
 		};
@@ -254,3 +255,4 @@ static bool			aason_from_string_hex(const char* begin, const char* end, int64_t*
 static bool			aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
 
 static aason_token*	aason_get_next_token(aason_token_state* state);
+static void			aason_report_error(aason_context* ctx, aason_error_type error, const char* file, uint32_t line, uint32_t column, const char* fmt, va_list args);

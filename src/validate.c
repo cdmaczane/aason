@@ -30,34 +30,23 @@ typedef struct
 	jmp_buf				jmp_ctx;
 } aason_validator;
 
-static void aason_validate_error(aason_validator* validator, aason_error_type error, const aason_token* token, const char* fmt, ...)
+static void aason_validate_error(aason_validator* validator, aason_error_type error, const aason_token* token, const char* format, ...)
 {
-	char buffer[4096];
-
 	aason_assert(token->file_index < validator->token_state.ctx->file_count);
 	aason_file* file = &validator->token_state.ctx->files[token->file_index];
 
-	validator->token_state.ctx->error = error;
-	validator->token_state.ctx->error_file = file->buffer;
-	validator->token_state.ctx->error_line = token->line;
-	validator->token_state.ctx->error_column = token->column;
-
-	if (validator->token_state.ctx->error_interface.error)
-	{
-		va_list args;
-		va_start(args, fmt);
-		vsnprintf(buffer, sizeof(buffer), fmt, args);
-		va_end(args);
-	
-		validator->token_state.ctx->error_interface.error(
-			validator->token_state.ctx->error_interface.user_data,
-			error,
-			file->buffer,
-			token->line,
-			token->column,
-			buffer
-		);
-	}
+	va_list args;
+	va_start(args, format);
+	aason_report_error(
+		validator->token_state.ctx,
+		error,
+		file->buffer,
+		token->line,
+		token->column,
+		format,
+		args
+	);
+	va_end(args);
 
 	longjmp(validator->jmp_ctx, 1);
 }

@@ -73,7 +73,8 @@ typedef enum
 	aason_error_key_not_found,
 	aason_error_invalid_range,
 	aason_error_array_too_large,
-	aason_error_buffer_too_small
+	aason_error_buffer_too_small,
+	aason_error_invalid_constructor
 } aason_error_type;
 
 typedef struct
@@ -194,7 +195,7 @@ void aason_destroy(aason_context* ctx);
 bool aason_reading(const aason_context* ctx);
 bool aason_writing(const aason_context* ctx);
 
-void aason_error(aason_context* ctx, aason_error_type type, const char* format, ...);
+void aason_error(aason_context* ctx, aason_error_type error, const char* format, ...);
 
 bool aason_read_enter_root_array(aason_context* ctx, size_t* size, size_t max_size);
 bool aason_read_enter_root_object(aason_context* ctx);

@@ -66,31 +66,20 @@ static bool aason_tokenise_is_valid_identifier_char(char c)
 	return false;
 }
 
-static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type error, const char* fmt, ...)
+static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type error, const char* format, ...)
 {
-	char buffer[4096];
-
-	tokeniser->ctx->error = error;
-	tokeniser->ctx->error_file = tokeniser->file;
-	tokeniser->ctx->error_line = tokeniser->line;
-	tokeniser->ctx->error_column = tokeniser->column;
-
-	if (tokeniser->ctx->error_interface.error)
-	{
-		va_list args;
-		va_start(args, fmt);
-		vsnprintf(buffer, sizeof(buffer), fmt, args);
-		va_end(args);
-	
-		tokeniser->ctx->error_interface.error(
-			tokeniser->ctx->error_interface.user_data,
-			error,
-			tokeniser->file,
-			tokeniser->line,
-			tokeniser->column,
-			buffer
-		);
-	}
+	va_list args;
+	va_start(args, format);
+	aason_report_error(
+		tokeniser->ctx,
+		error,
+		tokeniser->file,
+		tokeniser->line,
+		tokeniser->column,
+		format,
+		args
+	);
+	va_end(args);
 
 	longjmp(tokeniser->jmp_ctx, 1);
 }

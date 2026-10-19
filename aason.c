@@ -106,6 +106,54 @@ static aason_token* aason_get_next_token(aason_token_state* state)
 	return token;
 }
 
+static void aason_report_error(aason_context* ctx, aason_error_type error, const char* file, uint32_t line, uint32_t column, const char* format, va_list args)
+{
+	ctx->error = error;
+	ctx->error_file = file;
+	ctx->error_line = line;
+	ctx->error_column = column;
+
+	if (ctx->error_interface.error)
+	{
+		char buffer[4096];
+		vsnprintf(buffer, sizeof(buffer), format, args);
+	
+		ctx->error_interface.error(
+			ctx->error_interface.user_data,
+			error,
+			file,
+			line,
+			column,
+			buffer
+		);
+	}
+}
+
+void aason_error(aason_context* ctx, aason_error_type error, const char* format, ...)
+{
+	aason_assert(ctx);
+	aason_assert(ctx->reading);
+	aason_assert(ctx->error_element < ctx->element_count);
+
+	const aason_element* element = &ctx->elements[ctx->error_element];
+
+	aason_assert(element->value_file_index < ctx->file_count);
+	aason_file* file = &ctx->files[element->value_file_index];
+
+	va_list args;
+	va_start(args, format);
+	aason_report_error(
+		ctx,
+		error,
+		file->buffer,
+		element->line,
+		element->column,
+		format,
+		args
+	);
+	va_end(args);
+}
+
 void aason_destroy(aason_context* ctx)
 {
 	if (ctx)

@@ -12,9 +12,23 @@ typedef struct
 	jmp_buf					jmp_ctx;
 } aason_preparser;
 
-aason_noreturn static void aason_preparse_error(aason_preparser* preparser, aason_error_type error, const char* fmt, ...)
+aason_noreturn static void aason_preparse_error(aason_preparser* preparser, aason_error_type error, const char* format, ...)
 {
-	aason_assert(false);
+	aason_assert(preparser->file_index < preparser->ctx->file_count);
+	aason_file* file = &preparser->ctx->files[preparser->file_index];
+
+	va_list args;
+	va_start(args, format);
+	aason_report_error(
+		preparser->ctx,
+		error,
+		file->buffer,
+		preparser->line,
+		preparser->column,
+		format,
+		args
+	);
+	va_end(args);
 
 	longjmp(preparser->jmp_ctx, 1);
 }

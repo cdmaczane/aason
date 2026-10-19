@@ -11,34 +11,23 @@ static const char* aason_type_strings[] = {
 };
 static_assert(sizeof(aason_type_strings) / sizeof(const char*) == aason_type_count, "");
 
-static void aason_read_error(aason_context* ctx, aason_error_type error, const aason_element* element , const char* fmt, ...)
+static void aason_read_error(aason_context* ctx, aason_error_type error, const aason_element* element, const char* format, ...)
 {
-	char buffer[4096];
-
 	aason_assert(element->value_file_index < ctx->file_count);
 	aason_file* file = &ctx->files[element->value_file_index];
 
-	ctx->error = error;
-	ctx->error_file = file->buffer;
-	ctx->error_line = element->line;
-	ctx->error_column = element->column;
-
-	if (ctx->error_interface.error)
-	{
-		va_list args;
-		va_start(args, fmt);
-		vsnprintf(buffer, sizeof(buffer), fmt, args);
-		va_end(args);
-	
-		ctx->error_interface.error(
-			ctx->error_interface.user_data,
-			error,
-			file->buffer,
-			element->line,
-			element->column,
-			buffer
-		);
-	}
+	va_list args;
+	va_start(args, format);
+	aason_report_error(
+		ctx,
+		error,
+		file->buffer,
+		element->line,
+		element->column,
+		format,
+		args
+	);
+	va_end(args);
 }
 
 static const char* aason_read_get_key_buffer(aason_context* ctx, const aason_element* element)
@@ -85,6 +74,8 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 
 		if (key_len == object_element->key_len && memcmp(key, key_string, key_len) == 0)
 		{
+			ctx->error_element = (uint32_t)(object_element - ctx->elements);
+
 			if (object_element->type == type)
 			{
 				object_element->touched = true;
@@ -115,6 +106,8 @@ static const aason_element* aason_read_find_object_element(aason_context* ctx, c
 	
 			if (key_len == element->key_len && memcmp(key, key_string, key_len) == 0)
 			{
+				ctx->error_element = (uint32_t)(element - ctx->elements);
+
 				if (element->type == type)
 				{
 					element->touched = true;
@@ -165,6 +158,8 @@ static const aason_element* aason_read_get_next_array_element(aason_context* ctx
 		const aason_element* children = ctx->elements + array_element->array_value.first_child;
 		const aason_element* element = &children[array_index];
 
+		ctx->error_element = (uint32_t)(element - ctx->elements);
+
 		// Increment irrespective of whether an error was found
 		ctx->stack[stack_depth].child_index = array_index + 1;
 
@@ -213,6 +208,7 @@ static void aason_read_leave_common(aason_context* ctx, aason_type type)
 	aason_assert(element->type == type);
 
 	--ctx->stack_depth;
+	ctx->error_element = ctx->stack[ctx->stack_depth].element_index;
 }
 
 static bool aason_read_str_common(aason_context* ctx, const aason_element* element, const char** value, size_t* len)
