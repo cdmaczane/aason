@@ -50,10 +50,14 @@ typedef enum
 {
 	aason_error_none,
 	// Parse errors
+	aason_error_recursion,
+	aason_error_allocation,
+	aason_error_empty_file,
 	aason_error_invalid_key,
 	aason_error_invalid_char,
 	aason_error_key_expected,
 	aason_error_out_of_range,
+	aason_error_file_not_found,
 	aason_error_multiple_roots,
 	aason_error_colon_expected,
 	aason_error_unexpected_eof,
