@@ -13,15 +13,12 @@ static_assert(sizeof(aason_type_strings) / sizeof(const char*) == aason_type_cou
 
 static void aason_read_error(aason_context* ctx, aason_error_type error, const aason_element* element, const char* format, ...)
 {
-	aason_assert(element->value_file_index < ctx->file_count);
-	aason_file* file = &ctx->files[element->value_file_index];
-
 	va_list args;
 	va_start(args, format);
 	aason_report_error(
 		ctx,
 		error,
-		file->buffer,
+		aason_get_file_path(ctx, element->value_file_index),
 		element->line,
 		element->column,
 		format,
@@ -32,22 +29,12 @@ static void aason_read_error(aason_context* ctx, aason_error_type error, const a
 
 static const char* aason_read_get_key_buffer(aason_context* ctx, const aason_element* element)
 {
-	aason_assert(element->key_file_index < ctx->file_count);
-
-	const aason_file* file = &ctx->files[element->key_file_index];
-	const char* buffer = file->buffer + file->offset;
-
-	return buffer;
+	return aason_get_file_data(ctx, element->key_file_index);
 }
 
 static const char* aason_read_get_value_buffer(aason_context* ctx, const aason_element* element)
 {
-	aason_assert(element->value_file_index < ctx->file_count);
-
-	const aason_file* file = &ctx->files[element->value_file_index];
-	const char* buffer = file->buffer + file->offset;
-
-	return buffer;
+	return aason_get_file_data(ctx, element->value_file_index);
 }
 
 static const aason_element* aason_read_find_object_element(aason_context* ctx, const char* key, aason_flags flags, aason_type type)

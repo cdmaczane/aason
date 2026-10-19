@@ -14,15 +14,12 @@ typedef struct
 
 aason_noreturn static void aason_preparse_error(aason_preparser* preparser, aason_error_type error, const char* format, ...)
 {
-	aason_assert(preparser->file_index < preparser->ctx->file_count);
-	aason_file* file = &preparser->ctx->files[preparser->file_index];
-
 	va_list args;
 	va_start(args, format);
 	aason_report_error(
 		preparser->ctx,
 		error,
-		file->buffer,
+		aason_get_file_path(preparser->ctx, preparser->file_index),
 		preparser->line,
 		preparser->column,
 		format,

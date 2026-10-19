@@ -59,6 +59,30 @@ extern "C" {
 #include "src/to_string.c"
 #include "src/from_string.c"
 
+static aason_file* aason_get_file(aason_context* ctx, uint32_t index)
+{
+	aason_assert(index < ctx->file_count);
+	return &ctx->files[index];
+}
+
+static const char* aason_get_file_path(aason_context* ctx, uint32_t index)
+{
+	aason_assert(index < ctx->file_count);
+	return ctx->files[index].buffer;
+}
+
+static char* aason_get_file_data(aason_context* ctx, uint32_t index)
+{
+	aason_assert(index < ctx->file_count);
+	return ctx->files[index].buffer + ctx->files[index].offset;
+}
+
+static uint32_t aason_get_file_size(aason_context* ctx, uint32_t index)
+{
+	aason_assert(index < ctx->file_count);
+	return ctx->files[index].size;
+}
+
 static aason_token* aason_get_next_token(aason_token_state* state)
 {
 	aason_token* token;
@@ -73,7 +97,7 @@ static aason_token* aason_get_next_token(aason_token_state* state)
 			aason_assert(target_file_index < state->ctx->file_count);
 
 			// Recursion is disallowed so we can store return position in each file struct
-			aason_file* target_file = &state->ctx->files[target_file_index];
+			aason_file* target_file = aason_get_file(state->ctx, target_file_index);
 			target_file->return_file = state->file_index;
 			target_file->return_index = state->token_index;
 
@@ -89,7 +113,7 @@ static aason_token* aason_get_next_token(aason_token_state* state)
 			if (current_file_index == 0)
 				break; // End of root file
 
-			const aason_file* current_file = &state->ctx->files[current_file_index];
+			const aason_file* current_file = aason_get_file(state->ctx, current_file_index);
 			aason_assert(current_file->return_file < state->ctx->file_count);
 			aason_assert(current_file->return_index < state->tokens->count);
 
@@ -137,15 +161,12 @@ void aason_error(aason_context* ctx, aason_error_type error, const char* format,
 
 	const aason_element* element = &ctx->elements[ctx->error_element];
 
-	aason_assert(element->value_file_index < ctx->file_count);
-	aason_file* file = &ctx->files[element->value_file_index];
-
 	va_list args;
 	va_start(args, format);
 	aason_report_error(
 		ctx,
 		error,
-		file->buffer,
+		aason_get_file_path(ctx, element->value_file_index),
 		element->line,
 		element->column,
 		format,

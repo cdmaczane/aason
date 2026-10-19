@@ -254,5 +254,9 @@ static bool			aason_from_string_dec(const char* begin, const char* end, int64_t*
 static bool			aason_from_string_hex(const char* begin, const char* end, int64_t* value);
 static bool			aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
 
+static aason_file*	aason_get_file(aason_context* ctx, uint32_t index);
+static const char*	aason_get_file_path(aason_context* ctx, uint32_t index);
+static char*		aason_get_file_data(aason_context* ctx, uint32_t index);
+static uint32_t		aason_get_file_size(aason_context* ctx, uint32_t index);
 static aason_token*	aason_get_next_token(aason_token_state* state);
 static void			aason_report_error(aason_context* ctx, aason_error_type error, const char* file, uint32_t line, uint32_t column, const char* fmt, va_list args);

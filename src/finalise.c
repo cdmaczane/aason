@@ -7,15 +7,14 @@ typedef struct
 
 static void aason_finalise_error(aason_finaliser* finaliser, aason_error_type error, const aason_token* token, const char* format, ...)
 {
-	aason_assert(token->file_index < finaliser->token_state.ctx->file_count);
-	aason_file* file = &finaliser->token_state.ctx->files[token->file_index];
+	aason_context* ctx = finaliser->token_state.ctx;
 
 	va_list args;
 	va_start(args, format);
 	aason_report_error(
-		finaliser->token_state.ctx,
+		ctx,
 		error,
-		file->buffer,
+		aason_get_file_path(ctx, token->file_index),
 		token->line,
 		token->column,
 		format,
@@ -40,11 +39,10 @@ static aason_element* aason_finalise_allocate_elements(aason_finaliser* finalise
 
 static void aason_finalise_parse_str(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	aason_file* file = &finaliser->token_state.ctx->files[token->file_index];
-	char* buffer = file->buffer + file->offset;
+	const char* file_data = aason_get_file_data(finaliser->token_state.ctx, token->file_index);
 
 	element->type = aason_type_str;
-	element->str_value.offset = (uint32_t)(token->begin - buffer) + 1;
+	element->str_value.offset = (uint32_t)(token->begin - file_data) + 1;
 	element->str_value.len = (uint32_t)(token->end - token->begin) - 1;
 
 	// Null terminate string
@@ -97,19 +95,18 @@ static void aason_finalise_parse_float(aason_finaliser* finaliser, aason_token* 
 
 static void aason_finalise_parse_enum(aason_finaliser* finaliser, aason_token* token, aason_element* element)
 {
-	aason_file* file = &finaliser->token_state.ctx->files[token->file_index];
-	char* buffer = file->buffer + file->offset;
+	const char* file_data = aason_get_file_data(finaliser->token_state.ctx, token->file_index);
 
 	element->type = aason_type_enum;
-	element->enum_value.offset = (uint32_t)(token->begin - buffer);
+	element->enum_value.offset = (uint32_t)(token->begin - file_data);
 	element->enum_value.len = (uint32_t)(token->end - token->begin);
 
 	// Null terminate string
 	*token->end = 0;
 }
 
-// Forward declared as these functions call each other
 // TODO: Try using an iterative approach
+// Forward declared as these functions call each other
 static void aason_finalise_parse_value(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 static void aason_finalise_parse_array(aason_finaliser* finaliser, aason_token* token, aason_element* element);
 static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* token, aason_element* element);
@@ -204,14 +201,13 @@ static void aason_finalise_init_key(aason_finaliser* finaliser, aason_element* e
 		--end;
 	}
 
-	aason_assert(token->file_index < finaliser->token_state.ctx->file_count);
-	aason_file* file = &finaliser->token_state.ctx->files[token->file_index];
-	char* file_buffer = file->buffer + file->offset;
 	*end = 0; // Null terminate key string
+
+	const char* file_data = aason_get_file_data(finaliser->token_state.ctx, token->file_index);
 
 	element->key_file_index = token->file_index;
 	element->key_len = (uint32_t)(end - begin);
-	element->key_offset = (uint32_t)(begin - file_buffer);
+	element->key_offset = (uint32_t)(begin - file_data);
 }
 
 static void aason_finalise_parse_object(aason_finaliser* finaliser, aason_token* token, aason_element* element)

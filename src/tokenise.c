@@ -1,7 +1,6 @@
 typedef struct
 {
 	aason_context*	ctx;
-	//uint32_t		tab_size;
 	char			c;
 	char*			begin;
 	char*			end;
@@ -336,17 +335,15 @@ static aason_token* aason_allocate_token(aason_allocator* scratch, aason_tokens*
 
 static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aason_tokens* tokens, uint32_t file_index)
 {
-	aason_assert(file_index < ctx->file_count);
-
-	aason_file* file = &ctx->files[file_index];
-	char* buffer = file->buffer + file->offset;
+	char* file_data = aason_get_file_data(ctx, file_index);
+	const size_t file_size = aason_get_file_size(ctx, file_index);
 
 	aason_tokeniser tokeniser = {
 		.ctx			= ctx,
-		.begin			= buffer,
-		.end			= buffer + file->size,
-		.current		= buffer,
-		.next			= buffer,
+		.begin			= file_data,
+		.end			= file_data + file_size,
+		.current		= file_data,
+		.next			= file_data,
 		.line			= 1,
 		.column			= 1,
 		.next_line		= 1,
