@@ -220,7 +220,7 @@ static bool aason_read_str_common(aason_context* ctx, const aason_element* eleme
 static bool aason_read_fixed_str_common(aason_context* ctx, const aason_element* element, char* value, size_t buffer_size, bool truncate)
 {
 	aason_assert(value);
-	aason_assert(buffer_size > 0);
+	aason_assert(buffer_size);
 
 	if (element)
 	{
@@ -252,7 +252,7 @@ static bool aason_read_fixed_str_common(aason_context* ctx, const aason_element*
 	return false;
 }
 
-static bool aason_read_int_common(aason_context* ctx, const aason_element* element, int64_t* value)
+static bool aason_read_int_common(const aason_element* element, int64_t* value)
 {
 	aason_assert(value);
 
@@ -289,7 +289,7 @@ static bool aason_read_int_ranged_common(aason_context* ctx, const aason_element
 	return false;
 }
 
-static bool aason_read_bool_common(aason_context* ctx, const aason_element* element, bool* value)
+static bool aason_read_bool_common(const aason_element* element, bool* value)
 {
 	aason_assert(value);
 
@@ -302,7 +302,7 @@ static bool aason_read_bool_common(aason_context* ctx, const aason_element* elem
 	return false;
 }
 
-static bool aason_read_float_common(aason_context* ctx, const aason_element* element, float* value)
+static bool aason_read_float_common(const aason_element* element, float* value)
 {
 	aason_assert(value);
 
@@ -528,7 +528,7 @@ bool aason_read_array_fixed_str(aason_context* ctx, char* value, size_t buffer_s
 bool aason_read_array_int(aason_context* ctx, int64_t* value)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_int);
-	return aason_read_int_common(ctx, element, value);
+	return aason_read_int_common(element, value);
 }
 
 bool aason_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min, int64_t max)
@@ -540,13 +540,13 @@ bool aason_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min
 bool aason_read_array_bool(aason_context* ctx, bool* value)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_bool);
-	return aason_read_bool_common(ctx, element, value);
+	return aason_read_bool_common(element, value);
 }
 
 bool aason_read_array_float(aason_context* ctx, float* value)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_float);
-	return aason_read_float_common(ctx, element, value);
+	return aason_read_float_common(element, value);
 }
 
 bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** strings, int32_t count)
@@ -612,7 +612,7 @@ bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flag
 bool aason_read_object_int(aason_context* ctx, const char* key, aason_flags flags, int64_t* value)
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_int);
-	return aason_read_int_common(ctx, element, value);
+	return aason_read_int_common(element, value);
 }
 
 bool aason_read_object_int_ranged(aason_context* ctx, const char* key, aason_flags flags, int64_t* value, int64_t min, int64_t max)
@@ -624,13 +624,13 @@ bool aason_read_object_int_ranged(aason_context* ctx, const char* key, aason_fla
 bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags flags, bool* value)
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_bool);
-	return aason_read_bool_common(ctx, element, value);
+	return aason_read_bool_common(element, value);
 }
 
 bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value)
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_float);
-	return aason_read_float_common(ctx, element, value);
+	return aason_read_float_common(element, value);
 }
 
 bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags flags, int32_t* value, const char** strings, int32_t count)

@@ -2,7 +2,7 @@ typedef struct
 {
 	aason_token_state	token_state;
 	uint32_t			element_index;
-	jmp_buf				jmp_ctx;
+	jmp_buf*			jmp_ctx;
 } aason_finaliser;
 
 static void aason_finalise_error(aason_finaliser* finaliser, aason_error_type error, const aason_token* token, const char* format, ...)
@@ -22,7 +22,7 @@ static void aason_finalise_error(aason_finaliser* finaliser, aason_error_type er
 	);
 	va_end(args);
 
-	longjmp(finaliser->jmp_ctx, 1);
+	longjmp(*finaliser->jmp_ctx, 1);
 }
 
 static aason_element* aason_finalise_allocate_elements(aason_finaliser* finaliser, uint32_t count)
@@ -73,13 +73,13 @@ static void aason_finalise_parse_hex(aason_finaliser* finaliser, aason_token* to
 		aason_finalise_error(finaliser, aason_error_out_of_range, token, "Hexadecimal integer too large");
 }
 
-static void aason_finalise_parse_true(aason_finaliser* finaliser, aason_token* token, aason_element* element)
+static void aason_finalise_parse_true(aason_element* element)
 {
 	element->type = aason_type_bool;
 	element->bool_value = true;
 }
 
-static void aason_finalise_parse_false(aason_finaliser* finaliser, aason_token* token, aason_element* element)
+static void aason_finalise_parse_false(aason_element* element)
 {
 	element->type = aason_type_bool;
 	element->bool_value = false;
@@ -133,10 +133,10 @@ static void aason_finalise_parse_value(aason_finaliser* finaliser, aason_token* 
 		aason_finalise_parse_hex(finaliser, token, element);
 		break;
 	case aason_token_type_true:
-		aason_finalise_parse_true(finaliser, token, element);
+		aason_finalise_parse_true(element);
 		break;
 	case aason_token_type_false:
-		aason_finalise_parse_false(finaliser, token, element);
+		aason_finalise_parse_false(element);
 		break;
 	case aason_token_type_float:
 		aason_finalise_parse_float(finaliser, token, element);
@@ -206,7 +206,7 @@ static void aason_finalise_init_key(aason_finaliser* finaliser, aason_element* e
 	const char* file_data = aason_get_file_data(finaliser->token_state.ctx, token->file_index);
 
 	element->key_file_index = token->file_index;
-	element->key_len = (uint32_t)(end - begin);
+	element->key_len = (uint16_t)(end - begin);
 	element->key_offset = (uint32_t)(begin - file_data);
 }
 
@@ -263,14 +263,17 @@ static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_t
 
 static bool aason_run_finalise_pass(aason_context* ctx, aason_tokens* tokens)
 {
+	jmp_buf jmp_ctx;
+
 	aason_finaliser finaliser = {
 		.token_state = {
-			.ctx	= ctx,
-			.tokens	= tokens
-		}
+			.ctx = ctx,
+			.tokens = tokens
+		},
+		.jmp_ctx = &jmp_ctx
 	};
 
-	if (!setjmp(finaliser.jmp_ctx))
+	if (!setjmp(*finaliser.jmp_ctx))
 	{
 		aason_element* element = aason_finalise_allocate_elements(&finaliser, 1);
 

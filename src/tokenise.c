@@ -12,7 +12,7 @@ typedef struct
 	uint32_t		next_line;
 	uint32_t		next_column;
 	uint16_t		file_index;
-	jmp_buf			jmp_ctx;
+	jmp_buf*		jmp_ctx;
 } aason_tokeniser;
 
 static bool aason_tokenise_is_valid_bin_char(char c)
@@ -80,7 +80,7 @@ static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type er
 	);
 	va_end(args);
 
-	longjmp(tokeniser->jmp_ctx, 1);
+	longjmp(*tokeniser->jmp_ctx, 1);
 }
 
 // TODO: Move
@@ -338,6 +338,8 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 	char* file_data = aason_get_file_data(ctx, file_index);
 	const size_t file_size = aason_get_file_size(ctx, file_index);
 
+	jmp_buf jmp_ctx;
+
 	aason_tokeniser tokeniser = {
 		.ctx			= ctx,
 		.begin			= file_data,
@@ -347,10 +349,11 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 		.line			= 1,
 		.column			= 1,
 		.next_line		= 1,
-		.next_column	= 1
+		.next_column	= 1,
+		.jmp_ctx		= &jmp_ctx
 	};
 
-	if (setjmp(tokeniser.jmp_ctx))
+	if (setjmp(jmp_ctx))
 		return false;
 
 	aason_tokenise_get_char(&tokeniser);
@@ -359,7 +362,7 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 		const char c = aason_tokenise_skip_whitespace(&tokeniser);
 
 		aason_token* token = aason_allocate_token(scratch, tokens);
-		token->file_index = file_index;
+		token->file_index = (uint16_t)file_index;
 		token->count = 0;
 		token->begin = tokeniser.current;
 		token->line = tokeniser.line;
@@ -421,9 +424,9 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 		{
 			token->type = aason_token_type_jump;
 
-			uint32_t file_index;
-			memcpy(&file_index, tokeniser.current + 1, 4);
-			token->count = file_index; // TODO: Don't re-use this variable
+			uint32_t jump_index;
+			memcpy(&jump_index, tokeniser.current + 1, 4);
+			token->count = (uint16_t)jump_index; // TODO: Don't re-use this variable
 
 			tokeniser.next += 4;
 			tokeniser.next_column += 4;

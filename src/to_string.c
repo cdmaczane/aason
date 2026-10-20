@@ -41,6 +41,7 @@ static char* aason_to_string_float(aason_locale locale, char* out, float value)
 	const int result = snprintf(out, aason_float_max_len, "%.9g", value);
 	uselocale(previous);
 #else
+	(void)locale;
 	const int result = snprintf(out, aason_float_max_len, "%.9g", value);
 #endif
 	aason_assert(result >= 0);

@@ -27,7 +27,7 @@ typedef struct
 	uint32_t			depth;
 	uint32_t			max_depth;
 	uint32_t			element_count;
-	jmp_buf				jmp_ctx;
+	jmp_buf*			jmp_ctx;
 } aason_validator;
 
 static void aason_validate_error(aason_validator* validator, aason_error_type error, const aason_token* token, const char* format, ...)
@@ -47,7 +47,7 @@ static void aason_validate_error(aason_validator* validator, aason_error_type er
 	);
 	va_end(args);
 
-	longjmp(validator->jmp_ctx, 1);
+	longjmp(*validator->jmp_ctx, 1);
 }
 
 static aason_token* aason_validate_expect_token(aason_validator* validator, aason_token_type type)
@@ -104,7 +104,7 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 	name[len] = 0; // Null terminate
 
 	const uint32_t index = aason_validate_find_constructor(validator, token, name);
-	token->constructor_index = index;
+	token->constructor_index = (uint16_t)index;
 
 	aason_validate_expect_token(validator, aason_token_type_open_paren);
 
@@ -156,7 +156,7 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 static void aason_validate_object(aason_validator* validator, aason_token* parent)
 {
 	aason_token* token;
-	aason_token* comma;
+	aason_token* comma = NULL;
 
 	if (++validator->depth > validator->max_depth)
 		validator->max_depth = validator->depth;
@@ -229,7 +229,7 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 static void aason_validate_array(aason_validator* validator, aason_token* parent)
 {
 	aason_token* token;
-	aason_token* comma;
+	aason_token* comma = NULL;
 
 	if (++validator->depth > validator->max_depth)
 		validator->max_depth = validator->depth;
@@ -293,6 +293,8 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 
 static bool aason_run_validate_pass(aason_context* ctx, aason_tokens* tokens)
 {
+	jmp_buf jmp_ctx;
+
 	aason_validator validator = {
 		.token_state	= {
 			.ctx		= ctx,
@@ -300,10 +302,11 @@ static bool aason_run_validate_pass(aason_context* ctx, aason_tokens* tokens)
 		},
 		.depth			= 1,
 		.max_depth		= 1,
-		.element_count	= 0
+		.element_count	= 0,
+		.jmp_ctx		= &jmp_ctx
 	};
 
-	if (!setjmp(validator.jmp_ctx))
+	if (!setjmp(*validator.jmp_ctx))
 	{
 		const bool skip_root_identifier = ctx->mode == aason_mode_json || !ctx->use_implicit_root;
 		if (!skip_root_identifier)

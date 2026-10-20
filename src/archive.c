@@ -94,17 +94,34 @@ bool aason_archive_object_str(aason_context* ctx, const char* key, char** value,
 	return true;
 }
 
-// TODO: Handle length errors as runtime errors, not using asserts
+static void aason_copy_string(char* restrict dst, const char* restrict src, size_t dst_size)
+{
+	aason_assert(dst);
+	aason_assert(src);
+	aason_assert(dst != src);
+	aason_assert(dst_size > 0);
+
+	for (;;)
+	{
+		if (!*src || !(--dst_size))
+			break;
+		*dst++ = *src++;
+	}
+	*dst = 0;
+}
+
 bool aason_archive_object_fixed_str(aason_context* ctx, const char* key, char* value, const char* default_value, size_t buffer_size, bool truncate)
 {
 	aason_assert(default_value);
-	aason_assert(strlen(default_value) < buffer_size);
+	aason_assert(value);
+	aason_assert(buffer_size);
+	aason_assert(truncate || strlen(default_value) < buffer_size);
 
 	if (ctx->reading)
 	{
 		if (!aason_read_object_fixed_str(ctx, key, aason_optional, value, buffer_size, truncate))
 		{
-			strcpy(value, default_value);
+			aason_copy_string(value, default_value, buffer_size);
 			return false;
 		}
 	}

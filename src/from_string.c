@@ -30,6 +30,8 @@ static bool aason_from_string_hex(const char* begin, const char* end, int64_t* v
 
 static bool aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value)
 {
+	(void)locale;
+
 	errno = 0;
 	char* actual_end;
 	*value = aason_strtof(begin, &actual_end, locale);

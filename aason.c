@@ -118,7 +118,7 @@ static aason_token* aason_get_next_token(aason_token_state* state)
 			aason_assert(current_file->return_index < state->tokens->count);
 
 			// Restore previous position (note: token index was incrementing before jump)
-			state->file_index = current_file->return_file;
+			state->file_index = (uint16_t)current_file->return_file;
 			state->token_index = current_file->return_index;
 		}
 		else

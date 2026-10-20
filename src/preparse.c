@@ -106,15 +106,11 @@ static uint32_t aason_load_stream(aason_preparser* preparser, const char* path)
 			preparser->read_interface->close(preparser->read_interface->user_data, stream);
 			aason_preparse_error(preparser, aason_error_empty_file, "Empty file '%s'", path);
 		}
-
-		preparser->read_interface->close(preparser->read_interface->user_data, stream);
 	}
 	else
 	{
 		aason_preparse_error(preparser, aason_error_file_not_found, "Unable to open file '%s'", path);
 	}
-
-	return UINT32_MAX;
 }
 
 static char aason_preparse_get_char_ascii(aason_preparser* preparser)
@@ -507,9 +503,9 @@ static uint32_t aason_preparse_recursive(aason_preparser* preparser, const char*
 	return file_index;
 }
 
-aason_files aason_run_preparse_pass(aason_context* ctx, aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, const char* path)
+static aason_files aason_run_preparse_pass(aason_context* ctx, aason_allocator* scratch, aason_allocator* allocator, aason_read_interface* read_interface, const char* path)
 {
-	aason_files files = {};
+	aason_files files = {0};
 
 	aason_preparser preparser = {
 		.ctx			= ctx,
