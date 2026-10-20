@@ -112,7 +112,7 @@ aason_context* aason_write(const aason_write_desc* desc)
 		char* buffer = aason_alloc(&allocator, desc->buffer_size);
 		if (buffer)
 		{
-			aason_context* ctx = (aason_context*)aason_alloc(&allocator, sizeof(aason_context));
+			aason_context* ctx = aason_alloc(&allocator, sizeof(aason_context));
 			*ctx = (aason_context){
 				.error				= aason_error_none,
 				.tab_size			= tab_size,

@@ -11,6 +11,14 @@ static size_t aason_align_size(size_t size)
 	return (size + (alignment - 1)) & ~(alignment - 1);
 }
 
+static void* aason_suballoc(uint8_t** alloc, size_t size)
+{
+	void* result = *alloc;
+	*alloc += aason_align_size(size);
+
+	return result;
+}
+
 //static uint32_t aason_hash_string(const char* str)
 //{
 //	uint32_t hash = 2166136261;
@@ -23,7 +31,7 @@ static size_t aason_align_size(size_t size)
 //	return hash;
 //}
 
-static char* aason_copy_string_and_hash(char* restrict dst, const char* restrict src, uint32_t* restrict hash_out)
+static char* aason_copy_string_and_hash(char* aason_restrict dst, const char* aason_restrict src, uint32_t* aason_restrict hash_out)
 {
 	aason_assert(aason_tokenise_is_valid_identifier_first_char(*src));
 
@@ -101,41 +109,29 @@ static aason_constructors* aason_copy_constructors(uint8_t* alloc, aason_constru
 	if (count == 0)
 		return NULL;
 
-	aason_constructors* constructors = (aason_constructors*)alloc;
+	aason_constructors* constructors = aason_suballoc(&alloc, sizeof(aason_constructors));
 	constructors->count = (uint32_t)count;
-	alloc += aason_align_size(sizeof(aason_constructors));
 
-	constructors->names = (const char**)alloc;
-	alloc += aason_align_size(sizeof(const char*) * count);
-
-	constructors->hashes = (uint32_t*)alloc;
-	alloc += aason_align_size(sizeof(uint32_t) * count);
-
-	constructors->arg_counts = (uint8_t*)alloc;
-	alloc += aason_align_size(sizeof(uint8_t) * count);
-
-	constructors->arg_indices = (uint32_t*)alloc;
-	alloc += aason_align_size(sizeof(uint32_t) * count);
+	constructors->names = aason_suballoc(&alloc, sizeof(const char*) * count);;
+	constructors->hashes = aason_suballoc(&alloc, sizeof(uint32_t) * count);
+	constructors->arg_counts = aason_suballoc(&alloc, sizeof(uint8_t) * count);
+	constructors->arg_indices = aason_suballoc(&alloc, sizeof(uint32_t) * count);
 
 	if (write)
 	{
 		constructors->read_callbacks = NULL;
-		constructors->write_callbacks = (aason_write_constructor_callback*)alloc;
+		constructors->write_callbacks = aason_suballoc(&alloc, sizeof(aason_write_constructor_callback*) * count);
 	}
 	else
 	{
-		constructors->read_callbacks = (aason_read_constructor_callback*)alloc;
+		constructors->read_callbacks = aason_suballoc(&alloc, sizeof(aason_read_constructor_callback*) * count);
 		constructors->write_callbacks = NULL;
 	}
-	alloc += aason_align_size(sizeof(void*) * count);
 
-	constructors->args = (uint8_t*)alloc;
-	alloc += aason_align_size(sizeof(uint8_t) * sizes.arg_count);
+	constructors->args = aason_suballoc(&alloc, sizeof(uint8_t) * sizes.arg_count);
+	constructors->temp_args = aason_suballoc(&alloc, sizeof(aason_arg) * sizes.max_arg_count);
 
-	constructors->temp_args = (aason_arg*)alloc;
-	alloc += aason_align_size(sizeof(aason_arg) * sizes.max_arg_count);
-
-	char* name_buffer = (char*)alloc;
+	char* name_buffer = aason_suballoc(&alloc, sizes.string_size);
 
 	uint32_t arg_index = 0;
 	for (size_t i = 0; i < count; ++i)
@@ -217,13 +213,12 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 		const size_t packed_size	= context_size + constructor_size + file_size;
 
 		// Allocate all parsing memory in one go
-		uint8_t* alloc = (uint8_t*)aason_alloc(&temp_ctx.allocator, packed_size);
+		uint8_t* alloc = aason_alloc(&temp_ctx.allocator, packed_size);
 		if (alloc)
 		{
 			// Copy context from stack
-			ctx = (aason_context*)alloc;
+			ctx = aason_suballoc(&alloc, context_size);;
 			memcpy(ctx, &temp_ctx, sizeof(aason_context));
-			alloc += context_size;
 
 			if (desc->constructor_count)
 			{
@@ -263,7 +258,7 @@ bool aason_parse(aason_context* ctx)
 			const size_t packed_size	= stack_size + element_size;
 
 			// Allocate all parsing memory in one go
-			uint8_t* alloc = (uint8_t*)aason_alloc(&ctx->allocator, packed_size);
+			uint8_t* alloc = aason_alloc(&ctx->allocator, packed_size);
 			if (alloc)
 			{
 				ctx->stack = (aason_stack_entry*)alloc;

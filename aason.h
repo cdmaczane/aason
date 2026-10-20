@@ -19,6 +19,12 @@
 #endif
 
 #ifdef __cplusplus
+	#define aason_restrict __restrict
+#else
+	#define aason_restrict restrict
+#endif
+
+#ifdef __cplusplus
 	#define aason_noreturn [[noreturn]]
 #elif __STDC_VERSION__ >= 202311L
 	#define aason_noreturn [[noreturn]]

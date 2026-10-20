@@ -78,7 +78,7 @@ static uint32_t aason_load_stream(aason_preparser* preparser, const char* path)
 			const size_t path_size = strlen(path) + 1;
 			const size_t total_size = path_size + file_size + 1;
 
-			char* buffer = (char*)aason_alloc(preparser->allocator, total_size);
+			char* buffer = aason_alloc(preparser->allocator, total_size);
 			if (buffer)
 			{
 				aason_file* file = aason_allocate_file(preparser->scratch, preparser->files);

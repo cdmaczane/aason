@@ -213,7 +213,7 @@ struct aason_context
 
 	union
 	{
-		// TODO: C++ doesn't support anonymous structs
+		// Read
 		struct
 		{
 			aason_stack_entry*		stack;
@@ -228,6 +228,7 @@ struct aason_context
 			aason_file*				files;
 		};
 
+		// Write
 		struct
 		{
 			char*					buffer;

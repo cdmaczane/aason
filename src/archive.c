@@ -94,7 +94,7 @@ bool aason_archive_object_str(aason_context* ctx, const char* key, char** value,
 	return true;
 }
 
-static void aason_copy_string(char* restrict dst, const char* restrict src, size_t dst_size)
+static void aason_copy_string(char* aason_restrict dst, const char* aason_restrict src, size_t dst_size)
 {
 	aason_assert(dst);
 	aason_assert(src);
