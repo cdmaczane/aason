@@ -104,7 +104,8 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 	name[len] = 0; // Null terminate
 
 	const uint32_t index = aason_validate_find_constructor(validator, token, name);
-	token->constructor_index = (uint16_t)index;
+	token->count = 0;
+	token->constructor_index = index;
 
 	aason_validate_expect_token(validator, aason_token_type_open_paren);
 
@@ -157,6 +158,8 @@ static void aason_validate_object(aason_validator* validator, aason_token* paren
 {
 	aason_token* token;
 	aason_token* comma = NULL;
+
+	parent->count = 0;
 
 	if (++validator->depth > validator->max_depth)
 		validator->max_depth = validator->depth;
@@ -230,6 +233,8 @@ static void aason_validate_array(aason_validator* validator, aason_token* parent
 {
 	aason_token* token;
 	aason_token* comma = NULL;
+
+	parent->count = 0;
 
 	if (++validator->depth > validator->max_depth)
 		validator->max_depth = validator->depth;

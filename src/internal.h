@@ -5,7 +5,7 @@
 enum
 {
 	aason_int_max_len	= 21,	// Includes null terminator
-	aason_bool_max_len	= 5,
+	aason_bool_max_len	= 5,	// Does not include null terminator
 	aason_float_max_len	= 16	// Includes null terminator
 };
 
@@ -57,17 +57,32 @@ typedef enum
 	aason_token_type_count
 } aason_token_type;
 
-// TODO: I think if we add a union we can remove some 16-bit limitations
 typedef struct
 {
-	uint16_t			type;
-	uint16_t			file_index;
-	uint16_t			constructor_index;
-	uint16_t			count;
-	char*				begin;
-	char*				end;
+	aason_token_type	type;
 	uint32_t			line;
 	uint32_t			column;
+	uint32_t			file_index;
+
+	union
+	{
+		struct
+		{
+			uint32_t	jump_index;
+		};
+
+		struct
+		{
+			char*		begin;
+			char*		end;
+		};
+
+		struct
+		{
+			uint32_t	count;
+			uint32_t	constructor_index;
+		};
+	};
 } aason_token;
 static_assert(sizeof(aason_token) == 32, "");
 
@@ -101,7 +116,7 @@ typedef struct
 {
 	aason_context*	ctx;
 	aason_tokens*	tokens;
-	uint16_t		file_index;
+	uint32_t		file_index;
 	uint32_t		token_index;
 } aason_token_state;
 
@@ -121,11 +136,11 @@ typedef struct
 	bool				touched;
 	uint16_t			key_file_index;
 	uint16_t			value_file_index;
-	uint16_t			constructor_index;
 	uint16_t			key_len;
 	uint32_t			key_offset;
 	uint32_t			line;
 	uint32_t			column;
+	uint32_t			constructor_index;
 
 	union
 	{

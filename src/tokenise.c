@@ -362,11 +362,10 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 		const char c = aason_tokenise_skip_whitespace(&tokeniser);
 
 		aason_token* token = aason_allocate_token(scratch, tokens);
-		token->file_index = (uint16_t)file_index;
-		token->count = 0;
-		token->begin = tokeniser.current;
 		token->line = tokeniser.line;
 		token->column = tokeniser.column;
+		token->file_index = file_index;
+		token->begin = tokeniser.current;
 
 		if (c == ':')
 		{
@@ -426,7 +425,9 @@ static bool aason_tokenise_file(aason_context* ctx, aason_allocator* scratch, aa
 
 			uint32_t jump_index;
 			memcpy(&jump_index, tokeniser.current + 1, 4);
-			token->count = (uint16_t)jump_index; // TODO: Don't re-use this variable
+
+			// NOTE: This will overwrite token->begin, but jump tokens don't use that field
+			token->jump_index = jump_index;
 
 			tokeniser.next += 4;
 			tokeniser.next_column += 4;
