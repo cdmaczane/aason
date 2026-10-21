@@ -110,7 +110,7 @@ static aason_constructors* aason_copy_constructors(uint8_t* alloc, aason_constru
 		return NULL;
 
 	aason_constructors* constructors = aason_suballoc(&alloc, sizeof(aason_constructors));
-	constructors->count = (uint32_t)count;
+	constructors->count = (uint16_t)count;
 
 	constructors->names = aason_suballoc(&alloc, sizeof(const char*) * count);;
 	constructors->hashes = aason_suballoc(&alloc, sizeof(uint32_t) * count);
@@ -165,7 +165,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 	aason_assert(desc);
 	aason_assert(desc->path);
 	aason_assert(desc->tab_size <= 8);
-	aason_assert(desc->constructor_count <= UINT32_MAX);
+	aason_assert(desc->constructor_count <= UINT16_MAX);
 	aason_assert(desc->mode != aason_mode_json || !desc->use_implicit_root);
 
 	aason_context* ctx = NULL;

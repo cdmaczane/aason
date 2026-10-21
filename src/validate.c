@@ -78,12 +78,12 @@ static aason_token* aason_validate_expect_either_token(aason_validator* validato
 	return token;
 }
 
-static uint32_t aason_validate_find_constructor(aason_validator* validator, aason_token* token, const char* name)
+static uint16_t aason_validate_find_constructor(aason_validator* validator, aason_token* token, const char* name)
 {
 	const aason_constructors* constructors = validator->token_state.ctx->constructors;
 	if (constructors)
 	{
-		for (uint32_t i = 0; i < constructors->count; ++i)
+		for (uint16_t i = 0; i < constructors->count; ++i)
 		{
 			if (strcmp(name, constructors->names[i]) == 0)
 				return i;
@@ -94,7 +94,7 @@ static uint32_t aason_validate_find_constructor(aason_validator* validator, aaso
 		"Unknown constructor '%s'", name
 	);
 
-	return UINT32_MAX;
+	return UINT16_MAX;
 }
 
 static void aason_validate_constructor(aason_validator* validator, aason_token* token)
@@ -103,7 +103,7 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 	const size_t len = token->end - token->begin;
 	name[len] = 0; // Null terminate
 
-	const uint32_t index = aason_validate_find_constructor(validator, token, name);
+	const uint16_t index = aason_validate_find_constructor(validator, token, name);
 	token->count = 0;
 	token->constructor_index = index;
 

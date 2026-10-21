@@ -241,7 +241,7 @@ static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_t
 	element->type = aason_type_constructor;
 	element->constructor_value.constructor_index = token->constructor_index;
 
-	const uint32_t arg_count = token->count;
+	const uint8_t arg_count = token->count;
 	element->constructor_value.count = arg_count;
 	element->constructor_value.first_child = finaliser->element_index;
 
@@ -249,7 +249,7 @@ static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_t
 
 	aason_element* children = aason_finalise_allocate_elements(finaliser, arg_count);
 
-	for (uint32_t i = 0; i < arg_count; ++i)
+	for (uint8_t i = 0; i < arg_count; ++i)
 	{
 		token = aason_get_next_token(&finaliser->token_state);
 		aason_finalise_parse_value(finaliser, token, &children[i]);

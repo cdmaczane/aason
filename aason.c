@@ -93,7 +93,7 @@ static aason_token* aason_get_next_token(aason_token_state* state)
 		token = &state->tokens->tokens[state->token_index++];
 		if (token->type == aason_token_type_jump)
 		{
-			const uint16_t target_file_index = token->jump_index;
+			const uint32_t target_file_index = token->jump_index;
 			aason_assert(target_file_index < state->ctx->file_count);
 
 			// Recursion is disallowed so we can store return position in each file struct
@@ -107,7 +107,7 @@ static aason_token* aason_get_next_token(aason_token_state* state)
 		}
 		else if (token->type == aason_token_type_eof)
 		{
-			const uint16_t current_file_index = state->file_index;
+			const uint32_t current_file_index = state->file_index;
 			aason_assert(current_file_index < state->ctx->file_count);
 
 			if (current_file_index == 0)

@@ -120,16 +120,6 @@ typedef struct
 	uint32_t		token_index;
 } aason_token_state;
 
-/*
-	TODO:
-	* Store value offset and remove line and column.
-	* Instead calculate line and column on demand when an error occurs.
-	* Move constructor index into union, making the index and count both uint16_t.
-	* Now that we have value offset, we can replace offset with a hash in enum.
-	* With these changes the key and value file indices could probably be uint32_t.
-	* Create a parallel array of uint32_t key hashes to improve speed of field searches.
-	* Maintain field search cursor, assuming that subsequent fields are likely to match data and parse order.
-*/
 typedef struct
 {
 	uint8_t				type;
@@ -192,7 +182,7 @@ typedef void (*aason_write_constructor_callback)(aason_context* ctx, void* value
 
 typedef struct
 {
-	uint32_t							count;
+	uint16_t							count;
 
 	// The following are arrays of size count
 	const char**						names;
@@ -206,9 +196,6 @@ typedef struct
 	aason_arg*							temp_args;
 } aason_constructors;
 
-// TODO: Allow mechanism to get line and column of last element read for external error handling.
-// TODO: Can probably compact as some data will no longer be required once error has occurred.
-// TODO: Consider renaming elements within objects to "fields".
 struct aason_context
 {
 	//const char*						path;
