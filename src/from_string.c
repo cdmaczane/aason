@@ -2,10 +2,9 @@ static bool aason_from_string_bin(const char* begin, const char* end, int64_t* v
 {
 	errno = 0;
 	char* actual_end;
-	*value = strtoll(begin, &actual_end, 2);
-	aason_assert(actual_end == end);
+	*value = strtoll(begin + 2, &actual_end, 2);
 
-	return errno != ERANGE;
+	return actual_end == end && actual_end != begin + 2 && errno != ERANGE;
 }
 
 static bool aason_from_string_dec(const char* begin, const char* end, int64_t* value)
@@ -13,19 +12,17 @@ static bool aason_from_string_dec(const char* begin, const char* end, int64_t* v
 	errno = 0;
 	char* actual_end;
 	*value = strtoll(begin, &actual_end, 10);
-	aason_assert(actual_end == end);
 
-	return errno != ERANGE;
+	return actual_end == end && actual_end != begin && errno != ERANGE;
 }
 
 static bool aason_from_string_hex(const char* begin, const char* end, int64_t* value)
 {
 	errno = 0;
 	char* actual_end;
-	*value = strtoll(begin, &actual_end, 16);
-	aason_assert(actual_end == end);
+	*value = strtoll(begin + 2, &actual_end, 16);
 
-	return errno != ERANGE;
+	return actual_end == end && actual_end != begin + 2 && errno != ERANGE;
 }
 
 static bool aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value)
