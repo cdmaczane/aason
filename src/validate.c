@@ -142,7 +142,7 @@ static void aason_validate_constructor(aason_validator* validator, aason_token* 
 			break;
 		}
 
-		if (i < constructors->count - 1)
+		if (i < arg_count - 1)
 			aason_validate_expect_token(validator, aason_token_type_comma); // Skip comma token
 
 		++token->count;
