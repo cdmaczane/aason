@@ -322,12 +322,15 @@ static aason_token* aason_allocate_token(aason_allocator* scratch, aason_tokens*
 {
 	if (tokens->count == tokens->capacity)
 	{
+		const size_t old_size = sizeof(aason_token) * tokens->capacity;
+
 		if (tokens->count)
 			tokens->capacity <<= 1;
 		else
 			tokens->capacity = 64;
 
-		tokens->tokens = aason_realloc(scratch, tokens->tokens, sizeof(aason_token) * tokens->capacity);
+		const size_t new_size = sizeof(aason_token) * tokens->capacity;
+		tokens->tokens = aason_realloc(scratch, tokens->tokens, old_size, new_size);
 	}
 
 	return &tokens->tokens[tokens->count++];

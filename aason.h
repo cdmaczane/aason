@@ -113,7 +113,7 @@ typedef struct
 {
 	void*	user_data;
 	void*	(*alloc)(void* user_data, size_t size, size_t align, const char* function, const char* file, int line);
-	void*	(*realloc)(void* user_data, void* ptr, size_t size, size_t align, const char* function, const char* file, int line);
+	void*	(*realloc)(void* user_data, void* ptr, size_t old_size, size_t new_size, size_t align, const char* function, const char* file, int line);
 	void	(*free)(void* user_data, void* ptr, const char* function, const char* file, int line);
 	void*	(*push)(void* user_data);
 	void	(*pop)(void* user_data, void* frame);

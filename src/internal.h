@@ -1,6 +1,6 @@
-#define aason_alloc(allocator, size)		(allocator)->alloc((allocator)->user_data, (size), sizeof(void*), __func__, __FILE__, __LINE__)
-#define aason_free(allocator, ptr)			(allocator)->free((allocator)->user_data, (ptr), __func__, __FILE__, __LINE__)
-#define aason_realloc(allocator, ptr, size)	(allocator)->realloc((allocator)->user_data, (ptr), (size), sizeof(void*), __func__, __FILE__, __LINE__)
+#define aason_alloc(allocator, size)						(allocator)->alloc((allocator)->user_data, (size), sizeof(void*), __func__, __FILE__, __LINE__)
+#define aason_free(allocator, ptr)							(allocator)->free((allocator)->user_data, (ptr), __func__, __FILE__, __LINE__)
+#define aason_realloc(allocator, ptr, old_size, new_size)	(allocator)->realloc((allocator)->user_data, (ptr), (old_size), (new_size), sizeof(void*), __func__, __FILE__, __LINE__)
 
 enum
 {

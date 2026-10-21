@@ -187,13 +187,17 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 	if (desc->error_interface)
 		temp_ctx.error_interface = *desc->error_interface;
 
-	temp_ctx.allocator = *desc->allocator;
+	temp_ctx.allocator = aason_default_allocator;
+	if (desc->allocator)
+		temp_ctx.allocator = *desc->allocator;
 
 	temp_ctx.scratch = temp_ctx.allocator;
 	if (desc->scratch_allocator)
 		temp_ctx.scratch = *desc->scratch_allocator;
 
-	aason_read_interface read_interface = *desc->read_interface;
+	aason_read_interface read_interface = aason_default_read_interface;
+	if (desc->read_interface)
+		*desc->read_interface;
 
 	void* frame = temp_ctx.scratch.push(temp_ctx.scratch.user_data);
 

@@ -53,6 +53,7 @@ extern "C" {
 #include "src/tokenise.c"
 #include "src/validate.c"
 #include "src/finalise.c"
+#include "src/default.c"
 #include "src/parse.c"
 #include "src/read.c"
 #include "src/write.c"

@@ -41,12 +41,15 @@ static aason_file* aason_allocate_file(aason_allocator* scratch, aason_files* fi
 {
 	if (files->count == files->capacity)
 	{
+		const size_t old_size = sizeof(aason_file) * files->capacity;
+
 		if (files->count)
 			files->capacity <<= 1;
 		else
 			files->capacity = 64;
 
-		files->files = aason_realloc(scratch, files->files, sizeof(aason_file) * files->capacity);
+		const size_t new_size = sizeof(aason_file) * files->capacity;
+		files->files = aason_realloc(scratch, files->files, old_size, new_size);
 	}
 
 	return &files->files[files->count++];

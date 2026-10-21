@@ -1,0 +1,7 @@
+{
+	count: 42,
+	negative: -17,
+	enabled: true,
+	disabled: false,
+	title: "Hello world"
+}
