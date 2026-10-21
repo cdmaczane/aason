@@ -24,6 +24,16 @@ static const test_case test_cases[] =
 	{WORKING_DIR"parse/invalid/unclosed_array.aason", false},
 	{WORKING_DIR"parse/invalid/unclosed_object.aason", false},
 	{WORKING_DIR"parse/invalid/unclosed_string.aason", false},
+	{WORKING_DIR"parse/valid/array_numbers.aason", true},
+	{WORKING_DIR"parse/valid/array_strings.aason", true},
+	{WORKING_DIR"parse/valid/comments.aason", true},
+	{WORKING_DIR"parse/valid/empty_array.aason", true},
+	{WORKING_DIR"parse/valid/empty_object.aason", true},
+	{WORKING_DIR"parse/valid/mixed_containers.aason", true},
+	{WORKING_DIR"parse/valid/nested_arrays.aason", true},
+	{WORKING_DIR"parse/valid/nested_objects.aason", true},
+	{WORKING_DIR"parse/valid/object_primitives.aason", true},
+	{WORKING_DIR"parse/valid/whitespace.aason", true},
 };
 static const size_t test_count = sizeof(test_cases) / sizeof(test_case);
 
