@@ -353,7 +353,7 @@ static bool aason_read_constructor_common(aason_context* ctx, const aason_elemen
 
 	if (element)
 	{
-		const uint32_t constructor_index = element->constructor_index;
+		const uint32_t constructor_index = element->constructor_value.constructor_index;
 		aason_assert(constructor_index < ctx->constructors->count);
 
 		const aason_constructors* constructors = ctx->constructors;

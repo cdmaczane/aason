@@ -79,8 +79,8 @@ typedef struct
 
 		struct
 		{
-			uint32_t	count;
-			uint32_t	constructor_index;
+			uint16_t	constructor_index;
+			uint8_t		count;
 		};
 	};
 } aason_token;
@@ -134,13 +134,12 @@ typedef struct
 {
 	uint8_t				type;
 	bool				touched;
-	uint16_t			key_file_index;
-	uint16_t			value_file_index;
 	uint16_t			key_len;
 	uint32_t			key_offset;
+	uint32_t			key_file_index;
+	uint32_t			value_file_index;
 	uint32_t			line;
 	uint32_t			column;
-	uint32_t			constructor_index;
 
 	union
 	{
@@ -158,8 +157,9 @@ typedef struct
 
 		struct
 		{
-			uint32_t	count;
 			uint32_t	first_child;
+			uint16_t	constructor_index;
+			uint8_t		count;
 		} constructor_value;
 
 		struct

@@ -239,7 +239,7 @@ static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_t
 	aason_assert(token->constructor_index < finaliser->token_state.ctx->constructors->count);
 
 	element->type = aason_type_constructor;
-	element->constructor_index = token->constructor_index;
+	element->constructor_value.constructor_index = token->constructor_index;
 
 	const uint32_t arg_count = token->count;
 	element->constructor_value.count = arg_count;
