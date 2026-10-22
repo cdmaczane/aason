@@ -55,7 +55,7 @@ static aason_file* aason_allocate_file(aason_allocator* scratch, aason_files* fi
 	return &files->files[files->count++];
 }
 
-static uint32_t aason_load_stream(aason_preparser* preparser, const char* path)
+static uint32_t aason_load_stream(aason_preparser* preparser, const char* path, bool* loaded)
 {
 	aason_files* files = preparser->files;
 
@@ -67,7 +67,9 @@ static uint32_t aason_load_stream(aason_preparser* preparser, const char* path)
 			if (files->files[i].inside)
 				aason_preparse_error(preparser, aason_error_recursion, "Recursive include of '%s'", path);
 
-			return UINT32_MAX;
+			*loaded = true;
+
+			return i;
 		}
 	}
 
@@ -95,6 +97,8 @@ static uint32_t aason_load_stream(aason_preparser* preparser, const char* path)
 
 				// Null terminate file data to make parsing simpler
 				buffer[path_size + file_size] = 0;
+
+				*loaded = false;
 
 				return (uint32_t)(file - preparser->files->files);
 			}
@@ -464,8 +468,9 @@ static void aason_preparse_directive(aason_preparser* preparser)
 
 static uint32_t aason_preparse_recursive(aason_preparser* preparser, const char* path)
 {
-	const uint32_t file_index = aason_load_stream(preparser, path);
-	if (file_index != UINT32_MAX)
+	bool loaded;
+	const uint32_t file_index = aason_load_stream(preparser, path, &loaded);
+	if (!loaded)
 	{
 		// Save file state
 		const aason_preparse_file_state state = preparser->file_state;
