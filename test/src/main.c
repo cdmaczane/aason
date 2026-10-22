@@ -1,8 +1,10 @@
 #include "../../aason.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
+#include <string.h>
 
-#define WORKING_DIR "../aason/test/data/"
+#define WORKING_DIR ""
 
 typedef struct
 {
@@ -126,6 +128,12 @@ static const test_case test_cases[] =
 	{WORKING_DIR"parse/comments/valid/line_comment_after_value.aason", true},
 	{WORKING_DIR"parse/comments/valid/line_comment_at_eof.aason", true},
 	{WORKING_DIR"parse/comments/valid/line_comment_before_root.aason", true},
+	{WORKING_DIR"parse/comments/valid/nested_block_comments.aason", true},
+	{WORKING_DIR"parse/comments/valid/adjacent_block_comments.aason", true},
+	{WORKING_DIR"parse/comments/valid/block_comment_marker_inside_line_comment.aason", true},
+	{WORKING_DIR"parse/comments/valid/block_comment_with_asterisks.aason", true},
+	{WORKING_DIR"parse/comments/valid/deeply_nested_block_comments.aason", true},
+	{WORKING_DIR"parse/comments/valid/line_comment_inside_block_comment.aason", true},
 
 	{WORKING_DIR"parse/comments/invalid/block_comment_hides_closing_brace.aason", false},
 	{WORKING_DIR"parse/comments/invalid/carriage_return_not_followed_by_lf.aason", false},
@@ -135,6 +143,29 @@ static const test_case test_cases[] =
 	{WORKING_DIR"parse/comments/invalid/lone_carriage_return.aason", false},
 	{WORKING_DIR"parse/comments/invalid/unterminated_block_comment.aason", false},
 	{WORKING_DIR"parse/comments/invalid/unterminated_nested_block_comment.aason", false},
+	{WORKING_DIR"parse/comments/invalid/unclosed_outer_block_comment.aason", false},
+
+	{WORKING_DIR"parse/includes/valid/directive_text_in_string.aason", true},
+	{WORKING_DIR"parse/includes/valid/include_array_value.aason", true},
+	{WORKING_DIR"parse/includes/valid/include_chain.aason", true},
+	{WORKING_DIR"parse/includes/valid/include_multiple.aason", true},
+	{WORKING_DIR"parse/includes/valid/include_nested_array.aason", true},
+	{WORKING_DIR"parse/includes/valid/include_object_value.aason", true},
+	{WORKING_DIR"parse/includes/valid/include_root.aason", true},
+	{WORKING_DIR"parse/includes/valid/include_same_file_twice.aason", true},
+	{WORKING_DIR"parse/includes/valid/include_with_comments.aason", true},
+
+	{WORKING_DIR"parse/includes/invalid/direct_recursion.aason", false},
+	{WORKING_DIR"parse/includes/invalid/include_empty_file.aason", false},
+	{WORKING_DIR"parse/includes/invalid/include_inside_identifier.aason", false},
+	{WORKING_DIR"parse/includes/invalid/include_inside_number.aason", false},
+	{WORKING_DIR"parse/includes/invalid/include_mismatched_container.aason", false},
+	{WORKING_DIR"parse/includes/invalid/include_missing_path.aason", false},
+	{WORKING_DIR"parse/includes/invalid/include_two_values.aason", false},
+	{WORKING_DIR"parse/includes/invalid/include_unclosed_paren.aason", false},
+	{WORKING_DIR"parse/includes/invalid/include_unknown_directive.aason", false},
+	{WORKING_DIR"parse/includes/invalid/indirect_recursion.aason", false},
+	{WORKING_DIR"parse/includes/invalid/missing_file.aason", false},
 };
 static const size_t test_count = sizeof(test_cases) / sizeof(test_case);
 
@@ -142,6 +173,9 @@ typedef struct
 {
 	aason_error_type error_type;
 } error_state;
+
+static size_t test_index;
+static size_t break_index = SIZE_MAX;
 
 static void error_callback(void* user_data, aason_error_type error, const char* file, uint32_t line, uint32_t column, const char* msg)
 {
@@ -152,6 +186,17 @@ static void error_callback(void* user_data, aason_error_type error, const char* 
 
 	error_state* state = user_data;
 	state->error_type = error;
+
+	printf("    Error: %s (%u:%u) - %s.\n", file, line, column, msg);
+
+	if (test_index == break_index)
+	{
+#if _WIN32
+		__debugbreak();
+#else
+		__builtin_trap();
+#endif
+	}
 }
 
 static aason_error_type test_parse(const char* path)
@@ -179,29 +224,23 @@ static aason_error_type test_parse(const char* path)
 static bool test_all(void)
 {
 	size_t passed = 0;
-	for (size_t i = 0; i < test_count; ++i)
+	for (test_index = 0; test_index < test_count; ++test_index)
 	{
-		const test_case* test = &test_cases[i];
+		const test_case* test = &test_cases[test_index];
+
+		printf("TEST [%zu]: %s\n", test_index, test->path);
 
 		const aason_error_type error_type = test_parse(test->path);
 		const bool result = error_type == aason_error_none;
 
-		if (error_type == aason_error_file_not_found)
-		{
-			printf("File not found [%zu]: %s\n", i ,test->path);
-		}
-		else if (error_type == aason_error_allocation)
-		{
-			printf("Allocation failure [%zu]: %s\n", i, test->path);
-		}
-		else if (result == test->expect_success)
+		if (result == test->expect_success)
 		{
 			++passed;
-			printf("PASS: %s\n", test->path);
+			printf("    PASS: %s\n", aason_get_error_string(error_type));
 		}
 		else
 		{
-			printf("FAIL [%zu]:%s\n", i, test->path);
+			printf("    FAIL: %s\n", aason_get_error_string(error_type));
 		}
 	}
 
@@ -212,6 +251,8 @@ static bool test_all(void)
 
 int main(void)
 {
+	//break_index = 130;
+
 	if (test_all())
 		return EXIT_SUCCESS;
 

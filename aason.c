@@ -60,6 +60,44 @@ extern "C" {
 #include "src/to_string.c"
 #include "src/from_string.c"
 
+static const char* aason_error_type_strings[] = {
+	"none",
+	"recursion",
+	"allocation",
+	"empty_file",
+	"invalid_key",
+	"invalid_char",
+	"key_expected",
+	"out_of_range",
+	"file_not_found",
+	"multiple_roots",
+	"colon_expected",
+	"unexpected_eof",
+	"trailing_comma",
+	"unexpected_char",
+	"unexpected_token",
+	"expected_element",
+	"expected_identifier",
+	"unknown_constructor",
+	"mismatched_array_depth",
+	"mismatched_object_depth",
+	"wrong_type",
+	"unused_field",
+	"end_of_array",
+	"invalid_enum",
+	"key_not_found",
+	"invalid_range",
+	"array_too_large",
+	"buffer_too_small",
+	"invalid_constructor"
+};
+static_assert(sizeof(aason_error_type_strings) / sizeof(const char*) == aason_error_count, "");
+
+const char* aason_get_error_string(aason_error_type error)
+{
+	return aason_error_type_strings[error];
+}
+
 static aason_file* aason_get_file(aason_context* ctx, uint32_t index)
 {
 	aason_assert(index < ctx->file_count);

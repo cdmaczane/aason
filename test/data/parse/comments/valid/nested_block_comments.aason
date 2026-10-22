@@ -1,4 +1,1 @@
-{
-	/* outer /* inner */ outer */
-	value: 1
-}
+{/* outer /* inner */ outer */ value: 1}
