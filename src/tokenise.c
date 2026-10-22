@@ -6,7 +6,6 @@ typedef struct
 	char*			end;
 	char*			current;
 	char*			next;
-	const char*		file;
 	uint32_t		line;
 	uint32_t		column;
 	uint32_t		next_line;
@@ -67,12 +66,14 @@ static bool aason_tokenise_is_valid_identifier_char(char c)
 
 static void aason_tokenise_error(aason_tokeniser* tokeniser, aason_error_type error, const char* format, ...)
 {
+	const char* file = aason_get_file_path(tokeniser->ctx, tokeniser->file_index);
+
 	va_list args;
 	va_start(args, format);
 	aason_report_error(
 		tokeniser->ctx,
 		error,
-		tokeniser->file,
+		file,
 		tokeniser->line,
 		tokeniser->column,
 		format,
