@@ -1,0 +1,1 @@
+{ position: vec2(1.5, -2.0), color: rgb(0x10, 0x20, 0x30), name: tag("sample") }

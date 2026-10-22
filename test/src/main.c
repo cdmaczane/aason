@@ -4,6 +4,8 @@
 #include <assert.h>
 #include <string.h>
 
+#include "../../aason.c"
+
 #define WORKING_DIR		""
 #define COLOUR_RED		"\x1b[31m"
 #define COLOUR_GREEN	"\x1b[32m"
@@ -181,11 +183,31 @@ static const test_case test_cases[] =
 	{WORKING_DIR"parse/enums/invalid/identifier_with_hyphen.aason", false},
 	{WORKING_DIR"parse/enums/invalid/identifier_with_space.aason", false},
 
+	{WORKING_DIR"parse/constructors/valid/mixed_constructors.aason", true},
+	{WORKING_DIR"parse/constructors/valid/nested_containers.aason", true},
+	{WORKING_DIR"parse/constructors/valid/rgb_basic.aason", true},
+	{WORKING_DIR"parse/constructors/valid/rgb_zero.aason", true},
+	{WORKING_DIR"parse/constructors/valid/tag_empty.aason", true},
+	{WORKING_DIR"parse/constructors/valid/tag_escaped.aason", true},
+	{WORKING_DIR"parse/constructors/valid/tag_simple.aason", true},
+	{WORKING_DIR"parse/constructors/valid/vec2_multiple.aason", true},
+	{WORKING_DIR"parse/constructors/valid/vec2_negative.aason", true},
+	{WORKING_DIR"parse/constructors/valid/vec2_zero.aason", true},
+
 	{WORKING_DIR"parse/constructors/invalid/missing_argument.aason", false},
 	{WORKING_DIR"parse/constructors/invalid/trailing_comma.aason", false},
 	{WORKING_DIR"parse/constructors/invalid/unclosed_parenthesis.aason", false},
 	{WORKING_DIR"parse/constructors/invalid/unexpected_closing_parenthesis.aason", false},
 	{WORKING_DIR"parse/constructors/invalid/unknown_constructor.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/rgb_extra_argument.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/rgb_missing_argument.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/rgb_wrong_type.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/tag_extra_argument.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/tag_missing_argument.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/tag_wrong_type.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/vec2_extra_argument.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/vec2_missing_argument.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/vec2_wrong_type.aason", false},
 };
 static const size_t test_count = sizeof(test_cases) / sizeof(test_case);
 
@@ -196,6 +218,75 @@ typedef struct
 
 static size_t test_index;
 static size_t break_index = SIZE_MAX;
+
+static void vec2_read_constructor(aason_context* ctx, void* value, const aason_arg* args, size_t count)
+{
+	(void)ctx;
+	(void)value;
+
+	assert(count == 2);
+	assert(args[0].type == aason_arg_type_float);
+	assert(args[1].type == aason_arg_type_float);
+}
+
+static const aason_arg_type vec2_args[] = {
+	aason_arg_type_float,
+	aason_arg_type_float
+};
+
+static const aason_constructor_desc vec2_constructor = {
+	.name = "vec2",
+	.args = vec2_args,
+	.count = sizeof(vec2_args) / sizeof(aason_arg_type)
+};
+
+static void rgb_read_constructor(aason_context* ctx, void* value, const aason_arg* args, size_t count)
+{
+	(void)ctx;
+	(void)value;
+
+	assert(count == 3);
+	assert(args[0].type == aason_arg_type_hex);
+	assert(args[1].type == aason_arg_type_hex);
+	assert(args[2].type == aason_arg_type_hex);
+}
+
+static const aason_arg_type rgb_args[] = {
+	aason_arg_type_hex,
+	aason_arg_type_hex,
+	aason_arg_type_hex
+};
+
+static const aason_constructor_desc rgb_constructor = {
+	.name = "rgb",
+	.args = rgb_args,
+	.count = sizeof(rgb_args) / sizeof(aason_arg_type)
+};
+
+static void tag_read_constructor(aason_context* ctx, void* value, const aason_arg* args, size_t count)
+{
+	(void)ctx;
+	(void)value;
+
+	assert(count == 1);
+	assert(args[0].type == aason_arg_type_str);
+}
+
+static const aason_arg_type tag_args[] = {
+	aason_arg_type_str
+};
+
+static const aason_constructor_desc tag_constructor = {
+	.name = "tag",
+	.args = tag_args,
+	.count = sizeof(tag_args) / sizeof(aason_arg_type)
+};
+
+static const aason_constructor_desc* constructors[] = {
+	&vec2_constructor,
+	&rgb_constructor,
+	&tag_constructor
+};
 
 static void error_callback(void* user_data, aason_error_type error, const char* file, uint32_t line, uint32_t column, const char* msg)
 {
@@ -232,7 +323,9 @@ static aason_error_type test_parse(const char* path)
 
 	const aason_read_desc desc = {
 		.path = path,
-		.error_interface = &error_interface
+		.error_interface = &error_interface,
+		.constructors = constructors,
+		.constructor_count = sizeof(constructors) / sizeof(aason_constructor_desc*)
 	};
 	aason_context* ctx = aason_read(&desc);
 	if (ctx)
@@ -267,7 +360,7 @@ static bool test_all(void)
 	if (passed == test_count)
 		printf("\n" COLOUR_GREEN "All tests passed successfully" COLOUR_RESET "\n");
 	else
-		printf("\n" COLOUR_RED "%zu/%zu tests passed" COLOUR_RESET "\n", passed, test_count);
+		printf("\n" COLOUR_RED "%zu test(s) failed" COLOUR_RESET "\n", test_count - passed);
 
 	return passed == test_count;
 }
@@ -281,5 +374,3 @@ int main(void)
 
 	return EXIT_FAILURE;
 }
-
-#include "../../aason.c"
