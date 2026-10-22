@@ -202,7 +202,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 	void* frame = temp_ctx.scratch.push(temp_ctx.scratch.user_data);
 
 	aason_files files = aason_run_preparse_pass(&temp_ctx, &temp_ctx.scratch, &temp_ctx.allocator, &read_interface, desc->path);
-	if (files.count)
+	if (temp_ctx.error == aason_error_none)
 	{
 		temp_ctx.file_count = files.count;
 		temp_ctx.files = files.files;
