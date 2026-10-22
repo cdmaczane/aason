@@ -4,7 +4,10 @@
 #include <assert.h>
 #include <string.h>
 
-#define WORKING_DIR ""
+#define WORKING_DIR		""
+#define COLOUR_RED		"\x1b[31m"
+#define COLOUR_GREEN	"\x1b[32m"
+#define COLOUR_RESET	"\x1b[0m"
 
 typedef struct
 {
@@ -166,6 +169,23 @@ static const test_case test_cases[] =
 	{WORKING_DIR"parse/includes/invalid/include_unknown_directive.aason", false},
 	{WORKING_DIR"parse/includes/invalid/indirect_recursion.aason", false},
 	{WORKING_DIR"parse/includes/invalid/missing_file.aason", false},
+
+	{WORKING_DIR"parse/enums/valid/array_identifiers.aason", true},
+	{WORKING_DIR"parse/enums/valid/identifier_with_digits.aason", true},
+	{WORKING_DIR"parse/enums/valid/identifier_with_underscore.aason", true},
+	{WORKING_DIR"parse/enums/valid/nested_identifiers.aason", true},
+	{WORKING_DIR"parse/enums/valid/simple_identifier.aason", true},
+
+	{WORKING_DIR"parse/enums/invalid/identifier_starts_with_digit.aason", false},
+	{WORKING_DIR"parse/enums/invalid/identifier_with_dot.aason", false},
+	{WORKING_DIR"parse/enums/invalid/identifier_with_hyphen.aason", false},
+	{WORKING_DIR"parse/enums/invalid/identifier_with_space.aason", false},
+
+	{WORKING_DIR"parse/constructors/invalid/missing_argument.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/trailing_comma.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/unclosed_parenthesis.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/unexpected_closing_parenthesis.aason", false},
+	{WORKING_DIR"parse/constructors/invalid/unknown_constructor.aason", false},
 };
 static const size_t test_count = sizeof(test_cases) / sizeof(test_case);
 
@@ -236,11 +256,11 @@ static bool test_all(void)
 		if (result == test->expect_success)
 		{
 			++passed;
-			printf("    PASS: %s\n", aason_get_error_string(error_type));
+			printf("    " COLOUR_GREEN "PASS: " COLOUR_RESET "% s\n", aason_get_error_string(error_type));
 		}
 		else
 		{
-			printf("    FAIL: %s\n", aason_get_error_string(error_type));
+			printf("    " COLOUR_RED "FAIL: " COLOUR_RESET "% s\n", aason_get_error_string(error_type));
 		}
 	}
 
