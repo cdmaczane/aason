@@ -264,7 +264,10 @@ static bool test_all(void)
 		}
 	}
 
-	printf("\n%zu/%zu tests passed\n", passed, test_count);
+	if (passed == test_count)
+		printf("\n" COLOUR_GREEN "All tests passed successfully" COLOUR_RESET "\n");
+	else
+		printf("\n" COLOUR_RED "%zu/%zu tests passed" COLOUR_RESET "\n", passed, test_count);
 
 	return passed == test_count;
 }
