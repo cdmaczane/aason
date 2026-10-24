@@ -1,0 +1,1 @@
+{ nodes: [{ position: vec2(0.0, 1.0), name: tag("a") }, { position: vec2(2.0, 3.0), name: tag("b") }] }

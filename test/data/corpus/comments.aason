@@ -1,0 +1,5 @@
+// Leading comment
+{
+	/* Block comment */
+	value: 10 // End-of-line comment
+}

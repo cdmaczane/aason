@@ -365,12 +365,82 @@ static bool test_all(void)
 	return passed == test_count;
 }
 
+#if FUZZER_ENABLED
+typedef struct
+{
+	const uint8_t*	data;
+	const size_t	size;
+	size_t			open_count;
+} fuzz_stream;
+
+static void* fuzz_open(void* user_data, const char* path, size_t* size)
+{
+	(void)path;
+
+	fuzz_stream* fs = user_data;
+	if (fs->open_count++ == 0)
+	{
+		*size = fs->size;
+		return (void*)fs->data;
+	}
+
+	return NULL;
+}
+
+static void fuzz_read(void* user_data, void* stream, void* buffer, size_t offset, size_t size)
+{
+	(void)stream;
+
+	fuzz_stream* fs = user_data;
+	memcpy((uint8_t*)buffer, fs->data + offset, size);
+}
+
+static void fuzz_close(void* user_data, void* stream)
+{
+	(void)user_data;
+	(void)stream;
+}
+
+int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
+{
+	fuzz_stream fs = {
+		.data = data,
+		.size = size
+	};
+
+	const aason_read_interface read_interface = {
+		.user_data = &fs,
+		.open = fuzz_open,
+		.read = fuzz_read,
+		.close = fuzz_close
+	};
+
+	const aason_read_desc desc = {
+		.path = "dummy",
+		.read_interface = &read_interface
+	};
+	aason_context* ctx = aason_read(&desc);
+	if (ctx)
+		aason_destroy(ctx);
+	
+	return 0;
+}
+#else
+
+#if _WIN32
+	#define _CRTDBG_MAP_ALLOC
+	#include <crtdbg.h>
+#endif
+
 int main(void)
 {
-	//break_index = 130;
+#if _WIN32
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
 
 	if (test_all())
 		return EXIT_SUCCESS;
 
 	return EXIT_FAILURE;
 }
+#endif
