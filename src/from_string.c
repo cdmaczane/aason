@@ -33,10 +33,5 @@ static bool aason_from_string_float(aason_locale locale, const char* begin, cons
 	char* actual_end;
 	*value = aason_strtof(begin, &actual_end, locale);
 
-	if (errno == ERANGE)
-		return false;
-
-	aason_assert(actual_end == end);
-
-	return true;
+	return actual_end == end && errno != ERANGE;
 }
