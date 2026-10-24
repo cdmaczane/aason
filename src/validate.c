@@ -94,7 +94,7 @@ static uint16_t aason_validate_find_constructor(aason_validator* validator, aaso
 		"Unknown constructor '%s'", name
 	);
 
-	return UINT16_MAX;
+	//return UINT16_MAX;
 }
 
 static void aason_validate_constructor(aason_validator* validator, aason_token* token)
