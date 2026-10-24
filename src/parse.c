@@ -197,7 +197,7 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 
 	aason_read_interface read_interface = aason_default_read_interface;
 	if (desc->read_interface)
-		*desc->read_interface;
+		read_interface = *desc->read_interface;
 
 	void* frame = temp_ctx.scratch.push(temp_ctx.scratch.user_data);
 
@@ -237,10 +237,9 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 			for (uint32_t i = 0; i < files.count; ++i)
 				ctx->files[i] = files.files[i];
 		}
-
-		aason_free(&temp_ctx.scratch, files.files);
 	}
 
+	aason_free(&temp_ctx.scratch, files.files);
 	temp_ctx.scratch.pop(temp_ctx.scratch.user_data, frame);
 
 	return ctx;
