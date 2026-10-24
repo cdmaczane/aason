@@ -80,7 +80,7 @@ typedef struct
 		struct
 		{
 			uint16_t	constructor_index;
-			uint8_t		count;
+			uint32_t	count;
 		};
 	};
 } aason_token;

@@ -245,7 +245,7 @@ static void aason_finalise_parse_constructor(aason_finaliser* finaliser, aason_t
 	element->type = aason_type_constructor;
 	element->constructor_value.constructor_index = token->constructor_index;
 
-	const uint8_t arg_count = token->count;
+	const uint8_t arg_count = (uint8_t)token->count;
 	element->constructor_value.count = arg_count;
 	element->constructor_value.first_child = finaliser->element_index;
 
