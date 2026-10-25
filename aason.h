@@ -44,7 +44,6 @@ typedef enum
 	aason_required
 } aason_flags;
 
-// TODO: Currently unused
 typedef enum
 {
 	aason_base_bin,
@@ -164,7 +163,7 @@ typedef struct
 	const aason_arg_type*	args;
 	size_t					count;
 	void					(*read)(aason_context* ctx, void* value, const aason_arg* args, size_t count);
-	void					(*write)(aason_context* ctx, void* value);
+	void					(*write)(aason_context* ctx, const void* value);
 } aason_constructor_desc;
 
 typedef struct
@@ -230,16 +229,21 @@ bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flag
 bool aason_read_object_int(aason_context* ctx, const char* key, aason_flags flags, int64_t* value);
 bool aason_read_object_int_ranged(aason_context* ctx, const char* key, aason_flags flags, int64_t* value, int64_t min, int64_t max);
 bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags flags, bool* value);
-bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value);
 bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags flags, int32_t* value, const char** strings, int32_t count);
+bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value);
 bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_flags flags, void* value, const char* type);
 
+void aason_write_enter_root_array(aason_context* ctx);
+void aason_write_enter_root_object(aason_context* ctx);
+void aason_write_leave_array(aason_context* ctx);
+void aason_write_leave_object(aason_context* ctx);
 void aason_write_array_enter_object(aason_context* ctx);
 void aason_write_array_str(aason_context* ctx, const char* value);
 void aason_write_array_int(aason_context* ctx, int64_t value);
 void aason_write_array_bool(aason_context* ctx, bool value);
-void aason_write_array_float(aason_context* ctx, float value);
 void aason_write_array_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count);
+void aason_write_array_float(aason_context* ctx, float value);
+void aason_write_array_constructor(aason_context* ctx, const void* value);
 void aason_write_object_enter_array(aason_context* ctx, const char* key);
 void aason_write_object_enter_object(aason_context* ctx, const char* key);
 void aason_write_object_str(aason_context* ctx, const char* key, const char* value);
@@ -247,8 +251,12 @@ void aason_write_object_int(aason_context* ctx, const char* key, int64_t value);
 void aason_write_object_bool(aason_context* ctx, const char* key, bool value);
 void aason_write_object_float(aason_context* ctx, const char* key, float value);
 void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value, const char** strings, int32_t count);
-void aason_write_leave_array(aason_context* ctx);
-void aason_write_leave_object(aason_context* ctx);
+void aason_write_object_constructor(aason_context* ctx, const char* key, const void* value, const char* type);
+void aason_write_arg_str(aason_context* ctx, const char* value);
+void aason_write_arg_int(aason_context* ctx, int64_t value, aason_base base);
+void aason_write_arg_bool(aason_context* ctx, bool value);
+void aason_write_arg_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count);
+void aason_write_arg_float(aason_context* ctx, float value);
 
 bool aason_archive_array_enter_object(aason_context* ctx);
 void aason_archive_array_str(aason_context* ctx, char** value);
@@ -263,8 +271,8 @@ bool aason_archive_object_str(aason_context* ctx, const char* key, char** value,
 bool aason_archive_object_fixed_str(aason_context* ctx, const char* key, char* value, const char* default_value, size_t buffer_size, bool truncate);
 bool aason_archive_object_int(aason_context* ctx, const char* key, int64_t* value, int64_t default_value);
 bool aason_archive_object_bool(aason_context* ctx, const char* key, bool* value, bool default_value);
-bool aason_archive_object_float(aason_context* ctx, const char* key, float* value, float default_value);
 bool aason_archive_object_enum(aason_context* ctx, const char* key, int32_t* value, int32_t default_value, const char** strings, int32_t count);
+bool aason_archive_object_float(aason_context* ctx, const char* key, float* value, float default_value);
 void aason_archive_leave_array(aason_context* ctx);
 void aason_archive_leave_object(aason_context* ctx);
 

@@ -67,17 +67,37 @@ static void aason_default_pop(void* user_data, void* frame)
 	(void)frame;
 }
 
-static void* aason_default_open(void* user_data, const char* path, size_t* size)
+static void* aason_default_open_read(void* user_data, const char* path, size_t* size)
 {
 	(void)user_data;
 
-	FILE* file = fopen(path, "rb");
+	FILE* file;
+#if _WIN32
+	fopen_s(&file, path, "rb");
+#else
+	file = fopen(path, "rb");
+#endif
+
 	if (file)
 	{
 		fseek(file, 0, SEEK_END);
 		long length = ftell(file);
 		*size = (size_t)length;
 	}
+
+	return file;
+}
+
+static void* aason_default_open_write(void* user_data, const char* path)
+{
+	(void)user_data;
+
+	FILE* file;
+#if _WIN32
+	fopen_s(&file, path, "w");
+#else
+	file = fopen(path, "rb");
+#endif
 
 	return file;
 }
@@ -89,6 +109,14 @@ static void aason_default_read(void* user_data, void* stream, void* buffer, size
 	FILE* file = (FILE*)stream;
 	fseek(file, (long)offset, SEEK_SET);
 	fread(buffer, 1, size, file);
+}
+
+static void	aason_default_write(void* user_data, void* stream, const void* buffer, size_t size)
+{
+	(void)user_data;
+
+	FILE* file = (FILE*)stream;
+	fwrite(buffer, 1, size, file);
 }
 
 static void aason_default_close(void* user_data, void* stream)
@@ -108,7 +136,13 @@ static const aason_allocator aason_default_allocator = {
 };
 
 static const aason_read_interface aason_default_read_interface = {
-	.open	= aason_default_open,
+	.open	= aason_default_open_read,
 	.read	= aason_default_read,
+	.close	= aason_default_close
+};
+
+static const aason_write_interface aason_default_write_interface = {
+	.open	= aason_default_open_write,
+	.write	= aason_default_write,
 	.close	= aason_default_close
 };

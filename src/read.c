@@ -627,16 +627,16 @@ bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags fla
 	return aason_read_bool_common(element, value);
 }
 
-bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value)
-{
-	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_float);
-	return aason_read_float_common(element, value);
-}
-
 bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags flags, int32_t* value, const char** strings, int32_t count)
 {
 	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_enum);
 	return aason_read_enum_common(ctx, element, value, strings, count);
+}
+
+bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value)
+{
+	const aason_element* element = aason_read_find_object_element(ctx, key, flags, aason_type_float);
+	return aason_read_float_common(element, value);
 }
 
 bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_flags flags, void* value, const char* type)

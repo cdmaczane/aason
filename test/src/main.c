@@ -219,14 +219,32 @@ typedef struct
 static size_t test_index;
 static size_t break_index = SIZE_MAX;
 
+typedef struct
+{
+	float x;
+	float y;
+} vec2;
+
 static void vec2_read_constructor(aason_context* ctx, void* value, const aason_arg* args, size_t count)
 {
 	(void)ctx;
-	(void)value;
-
+	assert(value);
 	assert(count == 2);
 	assert(args[0].type == aason_arg_type_float);
 	assert(args[1].type == aason_arg_type_float);
+
+	vec2* vec2_value = value;
+	vec2_value->x = args[0].float_value;
+	vec2_value->y = args[1].float_value;
+}
+
+static void vec2_write_constructor(aason_context* ctx, const void* value)
+{
+	assert(value);
+
+	const vec2* vec2_value = value;
+	aason_write_arg_float(ctx, vec2_value->x);
+	aason_write_arg_float(ctx, vec2_value->y);
 }
 
 static const aason_arg_type vec2_args[] = {
@@ -237,18 +255,46 @@ static const aason_arg_type vec2_args[] = {
 static const aason_constructor_desc vec2_constructor = {
 	.name = "vec2",
 	.args = vec2_args,
-	.count = sizeof(vec2_args) / sizeof(aason_arg_type)
+	.count = sizeof(vec2_args) / sizeof(aason_arg_type),
+	.read = vec2_read_constructor,
+	.write = vec2_write_constructor
 };
+
+typedef struct
+{
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+} rgb;
 
 static void rgb_read_constructor(aason_context* ctx, void* value, const aason_arg* args, size_t count)
 {
 	(void)ctx;
-	(void)value;
-
+	assert(value);
 	assert(count == 3);
 	assert(args[0].type == aason_arg_type_hex);
 	assert(args[1].type == aason_arg_type_hex);
 	assert(args[2].type == aason_arg_type_hex);
+
+	// TODO: Use runtime errors
+	assert(args[0].int_value >= 0 && args[0].int_value <= 255);
+	assert(args[1].int_value >= 0 && args[1].int_value <= 255);
+	assert(args[2].int_value >= 0 && args[2].int_value <= 255);
+
+	rgb* rgb_value = value;
+	rgb_value->r = (uint8_t)args[0].int_value;
+	rgb_value->g = (uint8_t)args[1].int_value;
+	rgb_value->b = (uint8_t)args[2].int_value;
+}
+
+static void rgb_write_constructor(aason_context* ctx, const void* value)
+{
+	assert(value);
+
+	const rgb* rgb_value = value;
+	aason_write_arg_int(ctx, rgb_value->r, aason_base_hex);
+	aason_write_arg_int(ctx, rgb_value->g, aason_base_hex);
+	aason_write_arg_int(ctx, rgb_value->b, aason_base_hex);
 }
 
 static const aason_arg_type rgb_args[] = {
@@ -260,7 +306,9 @@ static const aason_arg_type rgb_args[] = {
 static const aason_constructor_desc rgb_constructor = {
 	.name = "rgb",
 	.args = rgb_args,
-	.count = sizeof(rgb_args) / sizeof(aason_arg_type)
+	.count = sizeof(rgb_args) / sizeof(aason_arg_type),
+	.read = rgb_read_constructor,
+	.write = rgb_write_constructor
 };
 
 static void tag_read_constructor(aason_context* ctx, void* value, const aason_arg* args, size_t count)
@@ -334,6 +382,39 @@ static aason_error_type test_parse(const char* path)
 	return state.error_type;
 }
 
+static bool test_write(void)
+{
+	const aason_write_desc desc = {
+		.path = "../../../aason_test/write_test.aason",
+		.constructors = constructors,
+		.constructor_count = sizeof(constructors) / sizeof(aason_constructor_desc*)
+	};
+	aason_context* ctx = aason_write(&desc);
+	if (ctx)
+	{
+		aason_write_enter_root_object(ctx);
+
+		aason_write_object_int(ctx, "integer", 42);
+		aason_write_object_bool(ctx, "bool", true);
+
+		const vec2 vec2_value = {42.0f, 20.789f};
+		aason_write_object_constructor(ctx, "vec2", &vec2_value, "vec2");
+
+		const rgb rgb_value = {0x10, 0xFF, 0x80};
+		aason_write_object_constructor(ctx, "rgb", &rgb_value, "rgb");
+
+		aason_write_object_enter_array(ctx, "array");
+		aason_write_array_enter_object(ctx);
+		aason_write_leave_object(ctx);
+		aason_write_leave_array(ctx);
+
+		aason_write_leave_object(ctx);
+		aason_destroy(ctx);
+	}
+
+	return ctx;
+}
+
 static bool test_all(void)
 {
 	size_t passed = 0;
@@ -358,11 +439,14 @@ static bool test_all(void)
 	}
 
 	if (passed == test_count)
-		printf("\n" COLOUR_GREEN "All tests passed successfully" COLOUR_RESET "\n");
+		printf("\n" COLOUR_GREEN "All parse tests passed successfully" COLOUR_RESET "\n");
 	else
-		printf("\n" COLOUR_RED "%zu test(s) failed" COLOUR_RESET "\n", test_count - passed);
+		printf("\n" COLOUR_RED "%zu parse test(s) failed" COLOUR_RESET "\n", test_count - passed);
 
-	return passed == test_count;
+	bool failed = passed != test_count;
+	failed |= !test_write();
+
+	return !failed;
 }
 
 #if FUZZER_ENABLED

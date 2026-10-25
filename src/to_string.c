@@ -47,5 +47,14 @@ static char* aason_to_string_float(aason_locale locale, char* out, float value)
 	aason_assert(result >= 0);
 	aason_assert(result < aason_float_max_len);
 
-	return out + result;
+	const char* original = out;
+	out += result;
+
+	if (!strchr(original, '.'))
+	{
+		*out++ = '.';
+		*out++ = '0';
+	}
+
+	return out;
 }

@@ -30,7 +30,7 @@ typedef struct
 	jmp_buf*			jmp_ctx;
 } aason_validator;
 
-static void aason_validate_error(aason_validator* validator, aason_error_type error, const aason_token* token, const char* format, ...)
+aason_noreturn static void aason_validate_error(aason_validator* validator, aason_error_type error, const aason_token* token, const char* format, ...)
 {
 	aason_context* ctx = validator->token_state.ctx;
 

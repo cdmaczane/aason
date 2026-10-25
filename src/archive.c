@@ -169,24 +169,6 @@ bool aason_archive_object_bool(aason_context* ctx, const char* key, bool* value,
 	return true;
 }
 
-bool aason_archive_object_float(aason_context* ctx, const char* key, float* value, float default_value)
-{
-	if (ctx->reading)
-	{
-		if (!aason_read_object_float(ctx, key, aason_optional, value))
-		{
-			*value = default_value;
-			return false;
-		}
-	}
-	else
-	{
-		aason_write_object_float(ctx, key, *value);
-	}
-
-	return true;
-}
-
 bool aason_archive_object_enum(aason_context* ctx, const char* key, int32_t* value, int32_t default_value, const char** strings, int32_t count)
 {
 	if (ctx->reading)
@@ -200,6 +182,24 @@ bool aason_archive_object_enum(aason_context* ctx, const char* key, int32_t* val
 	else
 	{
 		aason_write_object_enum(ctx, key, *value, strings, count);
+	}
+
+	return true;
+}
+
+bool aason_archive_object_float(aason_context* ctx, const char* key, float* value, float default_value)
+{
+	if (ctx->reading)
+	{
+		if (!aason_read_object_float(ctx, key, aason_optional, value))
+		{
+			*value = default_value;
+			return false;
+		}
+	}
+	else
+	{
+		aason_write_object_float(ctx, key, *value);
 	}
 
 	return true;

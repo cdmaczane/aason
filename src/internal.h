@@ -178,7 +178,7 @@ typedef struct
 } aason_stack_entry;
 
 typedef void (*aason_read_constructor_callback)(aason_context* ctx, void* value, const aason_arg* args, size_t count);
-typedef void (*aason_write_constructor_callback)(aason_context* ctx, void* value);
+typedef void (*aason_write_constructor_callback)(aason_context* ctx, const void* value);
 
 typedef struct
 {
@@ -198,7 +198,6 @@ typedef struct
 
 struct aason_context
 {
-	//const char*						path;
 	aason_error_type				error;
 	uint32_t						tab_size;
 	uint8_t							mode;
@@ -235,6 +234,8 @@ struct aason_context
 		{
 			char*					buffer;
 			size_t					buffer_size;
+			uint32_t				constructor_index;
+			uint32_t				arg_index;
 			bool					first;
 			bool					first_line;
 			size_t					reserved;
