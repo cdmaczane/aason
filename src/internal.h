@@ -4,8 +4,10 @@
 
 enum
 {
-	aason_int_max_len	= 21,	// Includes null terminator
-	aason_bool_max_len	= 5,	// Does not include null terminator
+	aason_dec_max_len	= 20,	// Includes '-' for negative values
+	aason_hex_max_len	= 18,	// Includes 0x prefix
+	aason_bin_max_len	= 66,	// Includes 0b prefix
+	aason_bool_max_len	= 5,
 	aason_float_max_len	= 16	// Includes null terminator
 };
 
@@ -249,13 +251,15 @@ struct aason_context
 
 static uint32_t		aason_utf8_byte_count(char c);
 
-static char*		aason_to_string_int(char* out, int64_t value);
+static char*		aason_to_string_dec(char* out, int64_t value, int min_digits);
+static char*		aason_to_string_hex(char* out, int64_t value, int min_digits);
+static char*		aason_to_string_bin(char* out, int64_t value, int min_digits);
 static char*		aason_to_string_bool(char* out, bool value);
 static char*		aason_to_string_float(aason_locale locale, char* out, float value);
 
-static bool			aason_from_string_bin(const char* begin, const char* end, int64_t* value);
 static bool			aason_from_string_dec(const char* begin, const char* end, int64_t* value);
 static bool			aason_from_string_hex(const char* begin, const char* end, int64_t* value);
+static bool			aason_from_string_bin(const char* begin, const char* end, int64_t* value);
 static bool			aason_from_string_float(aason_locale locale, const char* begin, const char* end, float* value);
 
 static aason_file*	aason_get_file(aason_context* ctx, uint32_t index);

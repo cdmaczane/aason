@@ -283,8 +283,8 @@ void aason_write_array_str(aason_context* ctx, const char* value)
 
 void aason_write_array_int(aason_context* ctx, int64_t value)
 {
-	char* out = aason_write_add_array_element(ctx, aason_int_max_len, 0);
-	out = aason_to_string_int(out, value);
+	char* out = aason_write_add_array_element(ctx, aason_dec_max_len, 0);
+	out = aason_to_string_dec(out, value, 0);
 	aason_write_commit(ctx, out);
 }
 
@@ -356,8 +356,8 @@ void aason_write_object_str(aason_context* ctx, const char* key, const char* val
 
 void aason_write_object_int(aason_context* ctx, const char* key, int64_t value)
 {
-	char* out = aason_write_add_object_element(ctx, key, aason_int_max_len, 0);
-	out = aason_to_string_int(out, value);
+	char* out = aason_write_add_object_element(ctx, key, aason_dec_max_len, 0);
+	out = aason_to_string_dec(out, value, 0);
 	aason_write_commit(ctx, out);
 }
 
@@ -503,8 +503,8 @@ void aason_write_arg_int(aason_context* ctx, int64_t value, aason_base base)
 		break;
 	}
 
-	char* out = aason_write_add_arg(ctx, aason_int_max_len, arg_type);
-	out = aason_to_string_int(out, value);
+	char* out = aason_write_add_arg(ctx, aason_dec_max_len, arg_type);
+	out = aason_to_string_dec(out, value, 0);
 	aason_write_commit(ctx, out);
 }
 
