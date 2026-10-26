@@ -288,6 +288,27 @@ void aason_write_array_int(aason_context* ctx, int64_t value)
 	aason_write_commit(ctx, out);
 }
 
+void aason_write_array_dec(aason_context* ctx, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_array_element(ctx, aason_dec_max_len, 0);
+	out = aason_to_string_dec(out, value, min_digits);
+	aason_write_commit(ctx, out);
+}
+
+void aason_write_array_hex(aason_context* ctx, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_array_element(ctx, aason_hex_max_len, 0);
+	out = aason_to_string_hex(out, value, min_digits);
+	aason_write_commit(ctx, out);
+}
+
+void aason_write_array_bin(aason_context* ctx, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_array_element(ctx, aason_bin_max_len, 0);
+	out = aason_to_string_bin(out, value, min_digits);
+	aason_write_commit(ctx, out);
+}
+
 void aason_write_array_bool(aason_context* ctx, bool value)
 {
 	char* out = aason_write_add_array_element(ctx, aason_bool_max_len, 0);
@@ -358,6 +379,27 @@ void aason_write_object_int(aason_context* ctx, const char* key, int64_t value)
 {
 	char* out = aason_write_add_object_element(ctx, key, aason_dec_max_len, 0);
 	out = aason_to_string_dec(out, value, 0);
+	aason_write_commit(ctx, out);
+}
+
+void aason_write_object_dec(aason_context* ctx, const char* key, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_object_element(ctx, key, aason_dec_max_len, 0);
+	out = aason_to_string_dec(out, value, min_digits);
+	aason_write_commit(ctx, out);
+}
+
+void aason_write_object_hex(aason_context* ctx, const char* key, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_object_element(ctx, key, aason_hex_max_len, 0);
+	out = aason_to_string_hex(out, value, min_digits);
+	aason_write_commit(ctx, out);
+}
+
+void aason_write_object_bin(aason_context* ctx, const char* key, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_object_element(ctx, key, aason_bin_max_len, 0);
+	out = aason_to_string_bin(out, value, min_digits);
 	aason_write_commit(ctx, out);
 }
 
@@ -487,24 +529,31 @@ void aason_write_arg_str(aason_context* ctx, const char* value)
 	aason_write_commit(ctx, out);
 }
 
-void aason_write_arg_int(aason_context* ctx, int64_t value, aason_base base)
+void aason_write_arg_int(aason_context* ctx, int64_t value)
 {
-	aason_arg_type arg_type;
-	switch (base)
-	{
-	case aason_base_bin:
-		arg_type = aason_arg_type_bin;
-		break;
-	case aason_base_hex:
-		arg_type = aason_arg_type_hex;
-		break;
-	default:
-		arg_type = aason_arg_type_dec;
-		break;
-	}
-
-	char* out = aason_write_add_arg(ctx, aason_dec_max_len, arg_type);
+	char* out = aason_write_add_arg(ctx, aason_dec_max_len, aason_arg_type_dec);
 	out = aason_to_string_dec(out, value, 0);
+	aason_write_commit(ctx, out);
+}
+
+void aason_write_arg_dec(aason_context* ctx, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_arg(ctx, aason_dec_max_len, aason_arg_type_dec);
+	out = aason_to_string_dec(out, value, min_digits);
+	aason_write_commit(ctx, out);
+}
+
+void aason_write_arg_hex(aason_context* ctx, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_arg(ctx, aason_hex_max_len, aason_arg_type_hex);
+	out = aason_to_string_hex(out, value, min_digits);
+	aason_write_commit(ctx, out);
+}
+
+void aason_write_arg_bin(aason_context* ctx, int64_t value, int min_digits)
+{
+	char* out = aason_write_add_arg(ctx, aason_bin_max_len, aason_arg_type_bin);
+	out = aason_to_string_bin(out, value, min_digits);
 	aason_write_commit(ctx, out);
 }
 

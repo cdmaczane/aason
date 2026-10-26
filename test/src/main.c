@@ -292,9 +292,9 @@ static void rgb_write_constructor(aason_context* ctx, const void* value)
 	assert(value);
 
 	const rgb* rgb_value = value;
-	aason_write_arg_int(ctx, rgb_value->r, aason_base_hex);
-	aason_write_arg_int(ctx, rgb_value->g, aason_base_hex);
-	aason_write_arg_int(ctx, rgb_value->b, aason_base_hex);
+	aason_write_arg_hex(ctx, rgb_value->r, 2);
+	aason_write_arg_hex(ctx, rgb_value->g, 2);
+	aason_write_arg_hex(ctx, rgb_value->b, 2);
 }
 
 static const aason_arg_type rgb_args[] = {
