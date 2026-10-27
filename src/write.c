@@ -95,6 +95,59 @@ static char* aason_write_add_object_element(aason_context* ctx, const char* key,
 	return out;
 }
 
+static char* aason_write_add_arg(aason_context* ctx, size_t len, aason_arg_type type)
+{
+	aason_assert(ctx);
+	aason_assert(len >= 0);
+
+	const aason_constructors* constructors = ctx->constructors;
+	const uint32_t constructor_index = ctx->constructor_index;
+	aason_assert(constructor_index < constructors->count);
+
+	const uint32_t arg_count = constructors->arg_counts[constructor_index];
+	aason_assert(arg_count <= UINT8_MAX);
+
+	const uint32_t current_index = ctx->arg_index++;
+	aason_assert(current_index < arg_count);
+
+	const uint32_t arg_index = constructors->arg_indices[constructor_index] + current_index;
+	aason_arg_type arg_type = constructors->args[arg_index];
+	aason_assert(type == arg_type);
+
+	char* out;
+	if (current_index)
+	{
+		out = aason_write_reserve(ctx, len + 2);
+		*out++ = ',';
+		*out++ = ' ';
+	}
+	else
+	{
+		out = aason_write_reserve(ctx, len);
+	}
+
+	return out;
+}
+
+// TODO: Make common
+static uint16_t aason_write_find_constructor(const aason_constructors* constructors, const char* type)
+{
+	aason_assert(type);
+
+	if (constructors)
+	{
+		for (uint16_t i = 0; i < constructors->count; ++i)
+		{
+			if (strcmp(type, constructors->names[i]) == 0)
+				return i;
+		}
+	}
+
+	aason_assert(false);
+
+	return UINT16_MAX;
+}
+
 aason_context* aason_write(const aason_write_desc* desc)
 {
 	aason_assert(desc);
@@ -135,6 +188,7 @@ aason_context* aason_write(const aason_write_desc* desc)
 					.tab_size			= tab_size,
 					.reading			= false,
 					.locale				= aason_new_locale(),
+					.value				= allocator,
 					.allocator			= allocator,
 					//.constructors		= desc->constructors,
 					.buffer				= buffer,
@@ -146,6 +200,9 @@ aason_context* aason_write(const aason_write_desc* desc)
 					.stream				= stream,
 					.write_interface	= write_interface
 				};
+
+				if (desc->value_allocator)
+					ctx->value = *desc->value_allocator;
 
 				if (desc->constructor_count)
 					ctx->constructors = aason_copy_constructors(alloc, constructor_sizes, desc->constructors, desc->constructor_count, true);
@@ -258,15 +315,9 @@ void aason_write_array_enter_object(aason_context* ctx)
 	ctx->first = true;
 }
 
-void aason_write_array_object_leave(aason_context* ctx)
-{
-	aason_write_leave_object(ctx);
-}
-
 void aason_write_array_str(aason_context* ctx, const char* value)
 {
 	aason_assert(value);
-	//aason_assert(*value);
 
 	char* out = aason_write_add_array_element(ctx, 1, 0);
 	*out++ = '"';
@@ -316,6 +367,13 @@ void aason_write_array_bool(aason_context* ctx, bool value)
 	aason_write_commit(ctx, out);
 }
 
+void aason_write_array_float(aason_context* ctx, float value)
+{
+	char* out = aason_write_add_array_element(ctx, aason_float_max_len, 0);
+	out = aason_to_string_float(ctx->locale, out, value);
+	aason_write_commit(ctx, out);
+}
+
 void aason_write_array_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count)
 {
 	aason_assert(strings);
@@ -330,10 +388,31 @@ void aason_write_array_enum(aason_context* ctx, int32_t value, const char** stri
 	aason_write_commit(ctx, out + len);
 }
 
-void aason_write_array_float(aason_context* ctx, float value)
+void aason_write_array_constructor(aason_context* ctx, const void* value, const char* type)
 {
-	char* out = aason_write_add_array_element(ctx, aason_float_max_len, 0);
-	out = aason_to_string_float(ctx->locale, out, value);
+	aason_assert(value);
+
+	const aason_constructors* constructors = ctx->constructors;
+	const uint16_t constructor_index = aason_write_find_constructor(constructors, type);
+
+	const char* name = constructors->names[constructor_index];
+
+	// TODO: Merge compare and length query into a single loop
+	const size_t len = strlen(name);
+
+	char* out = aason_write_add_array_element(ctx, len + 1, 0);
+	memcpy(out, name, len);
+	out += len;
+	*out++ = '(';
+	aason_write_commit(ctx, out);
+
+	ctx->constructor_index = constructor_index;
+	ctx->arg_index = 0;
+
+	constructors->write_callbacks[constructor_index](ctx, value);
+
+	out = aason_write_reserve(ctx, 1);
+	*out++ = ')';
 	aason_write_commit(ctx, out);
 }
 
@@ -431,28 +510,9 @@ void aason_write_object_enum(aason_context* ctx, const char* key, int32_t value,
 	aason_write_commit(ctx, out + len);
 }
 
-static uint16_t aason_write_find_constructor(const aason_constructors* constructors, const char* type)
-{
-	aason_assert(type);
-
-	if (constructors)
-	{
-		for (uint16_t i = 0; i < constructors->count; ++i)
-		{
-			if (strcmp(type, constructors->names[i]) == 0)
-				return i;
-		}
-	}
-
-	aason_assert(false);
-
-	return UINT16_MAX;
-}
-
 void aason_write_object_constructor(aason_context* ctx, const char* key, const void* value, const char* type)
 {
 	aason_assert(value);
-	aason_assert(type);
 
 	const aason_constructors* constructors = ctx->constructors;
 	const uint16_t constructor_index = aason_write_find_constructor(constructors, type);
@@ -476,40 +536,6 @@ void aason_write_object_constructor(aason_context* ctx, const char* key, const v
 	out = aason_write_reserve(ctx, 1);
 	*out++ = ')';
 	aason_write_commit(ctx, out);
-}
-
-static char* aason_write_add_arg(aason_context* ctx, size_t len, aason_arg_type type)
-{
-	aason_assert(ctx);
-	aason_assert(len >= 0);
-
-	const aason_constructors* constructors = ctx->constructors;
-	const uint32_t constructor_index = ctx->constructor_index;
-	aason_assert(constructor_index < constructors->count);
-
-	const uint32_t arg_count = constructors->arg_counts[constructor_index];
-	aason_assert(arg_count <= UINT8_MAX);
-
-	const uint32_t current_index = ctx->arg_index++;
-	aason_assert(current_index < arg_count);
-
-	const uint32_t arg_index = constructors->arg_indices[constructor_index] + current_index;
-	aason_arg_type arg_type = constructors->args[arg_index];
-	aason_assert(type == arg_type);
-
-	char* out;
-	if (current_index)
-	{
-		out = aason_write_reserve(ctx, len + 2);
-		*out++ = ',';
-		*out++ = ' ';
-	}
-	else
-	{
-		out = aason_write_reserve(ctx, len);
-	}
-
-	return out;
 }
 
 void aason_write_arg_str(aason_context* ctx, const char* value)
@@ -564,6 +590,13 @@ void aason_write_arg_bool(aason_context* ctx, bool value)
 	aason_write_commit(ctx, out);
 }
 
+void aason_write_arg_float(aason_context* ctx, float value)
+{
+	char* out = aason_write_add_arg(ctx, aason_float_max_len, aason_arg_type_float);
+	out = aason_to_string_float(ctx->locale, out, value);
+	aason_write_commit(ctx, out);
+}
+
 void aason_write_arg_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count)
 {
 	aason_assert(value >= 0);
@@ -575,11 +608,4 @@ void aason_write_arg_enum(aason_context* ctx, int32_t value, const char** string
 	char* out = aason_write_add_arg(ctx, aason_bool_max_len, aason_arg_type_enum);
 	memcpy(out, strings[value], len);
 	aason_write_commit(ctx, out + len);
-}
-
-void aason_write_arg_float(aason_context* ctx, float value)
-{
-	char* out = aason_write_add_arg(ctx, aason_float_max_len, aason_arg_type_float);
-	out = aason_to_string_float(ctx->locale, out, value);
-	aason_write_commit(ctx, out);
 }

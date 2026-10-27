@@ -210,6 +210,7 @@ struct aason_context
 	uint32_t						stack_depth;
 	aason_locale					locale;
 	aason_error_interface			error_interface;
+	aason_allocator					value;
 	aason_allocator					scratch;
 	aason_allocator					allocator;
 	aason_constructors*				constructors;

@@ -251,6 +251,31 @@ bool aason_writing(const aason_context* ctx)
 	return !ctx->reading;
 }
 
+void* aason_alloc_value_impl(aason_context* ctx, size_t size, size_t align, const char* func, const char* file, int line)
+{
+	aason_assert(ctx);
+	aason_assert(size);
+	aason_assert(align);
+	aason_assert(func);
+	aason_assert(file);
+	aason_assert(line >= 0);
+
+	void* alloc = ctx->value.alloc(ctx->value.user_data, size, align, func, file, line);
+	aason_assert(alloc); // TODO: Raise error
+
+	return alloc;
+}
+
+void aason_free_value_impl(aason_context* ctx, void* value, const char* func, const char* file, int line)
+{
+	aason_assert(ctx);
+	aason_assert(func);
+	aason_assert(file);
+	aason_assert(line >= 0);
+
+	ctx->value.free(ctx->value.user_data, value, func, file, line);
+}
+
 #ifdef __cplusplus
 }
 #endif

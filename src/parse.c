@@ -224,6 +224,10 @@ aason_context* aason_preparse(const aason_read_desc* desc)
 			ctx = aason_suballoc(&alloc, context_size);;
 			memcpy(ctx, &temp_ctx, sizeof(aason_context));
 
+			ctx->value = ctx->allocator;
+			if (desc->value_allocator)
+				ctx->value = *desc->value_allocator;
+
 			if (desc->constructor_count)
 			{
 				ctx->constructors = aason_copy_constructors(alloc, constructor_sizes, desc->constructors, desc->constructor_count, false);

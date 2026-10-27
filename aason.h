@@ -33,6 +33,18 @@
 #endif
 
 #ifdef __cplusplus
+	#define aason_alignof(type) alignof(type)
+#elif __STDC_VERSION__ >= 202311L
+	#define aason_alignof(type) alignof(type)
+#else
+	#define aason_alignof(type) _Alignof(type) // Deprecated in C23
+#endif
+
+#define aason_alloc_type(ctx, type)			aason_alloc_value_impl((ctx), sizeof(type), aason_alignof(type), __func__, __FILE__, __LINE__)
+#define aason_alloc_value(ctx, size, align)	aason_alloc_value_impl((ctx), (size), (align), __func__, __FILE__, __LINE__)
+#define aason_free_value(ctx, ptr)			aason_free_value_impl((ctx), (ptr), __func__, __FILE__, __LINE__)
+
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -183,6 +195,12 @@ typedef struct
 	size_t							constructor_count;
 } aason_read_desc;
 
+/*
+	TODO:
+	* Add flag to use spaces instead of tabs.
+	* Add flag to put opening braces/brackets on their own lines.
+	* Add JSON writing mode.
+*/
 typedef struct
 {
 	const char*						path;
@@ -191,6 +209,7 @@ typedef struct
 	const aason_error_interface*	error_interface;
 	const aason_write_interface*	write_interface;
 	const aason_allocator*			allocator;
+	const aason_allocator*			value_allocator;
 	const aason_constructor_desc**	constructors;
 	size_t							constructor_count;
 } aason_write_desc;
@@ -209,13 +228,17 @@ bool aason_writing(const aason_context* ctx);
 void aason_error(aason_context* ctx, aason_error_type error, const char* format, ...);
 const char* aason_get_error_string(aason_error_type error);
 
+void* aason_alloc_value_impl(aason_context* ctx, size_t size, size_t align, const char* func, const char* file, int line);
+void aason_free_value_impl(aason_context* ctx, void* value, const char* func, const char* file, int line);
+
 bool aason_read_enter_root_array(aason_context* ctx, size_t* size, size_t max_size);
 bool aason_read_enter_root_object(aason_context* ctx);
 void aason_read_leave_array(aason_context* ctx);
 void aason_read_leave_object(aason_context* ctx);
 bool aason_read_array_enter_object(aason_context* ctx);
-bool aason_read_array_str(aason_context* ctx, const char** value, size_t* len);
 bool aason_read_array_fixed_str(aason_context* ctx, char* value, size_t buffer_size, bool truncate);
+bool aason_read_array_borrowed_str(aason_context* ctx, const char** value, size_t* len);
+bool aason_read_array_duplicated_str(aason_context* ctx, char** value);
 bool aason_read_array_int(aason_context* ctx, int64_t* value);
 bool aason_read_array_int_ranged(aason_context* ctx, int64_t* value, int64_t min, int64_t max);
 bool aason_read_array_bool(aason_context* ctx, bool* value);
@@ -224,13 +247,14 @@ bool aason_read_array_enum(aason_context* ctx, int32_t* value, const char** stri
 bool aason_read_array_constructor(aason_context* ctx, void* value, const char* type);
 bool aason_read_object_enter_array(aason_context* ctx, const char* key, aason_flags flags, size_t* size, size_t max_size);
 bool aason_read_object_enter_object(aason_context* ctx, const char* key, aason_flags flags);
-bool aason_read_object_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, size_t* len);
 bool aason_read_object_fixed_str(aason_context* ctx, const char* key, aason_flags flags, char* value, size_t buffer_size, bool truncate);
+bool aason_read_object_borrowed_str(aason_context* ctx, const char* key, aason_flags flags, const char** value, size_t* len);
+bool aason_read_object_duplicated_str(aason_context* ctx, const char* key, aason_flags flags, char** value);
 bool aason_read_object_int(aason_context* ctx, const char* key, aason_flags flags, int64_t* value);
 bool aason_read_object_int_ranged(aason_context* ctx, const char* key, aason_flags flags, int64_t* value, int64_t min, int64_t max);
 bool aason_read_object_bool(aason_context* ctx, const char* key, aason_flags flags, bool* value);
-bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags flags, int32_t* value, const char** strings, int32_t count);
 bool aason_read_object_float(aason_context* ctx, const char* key, aason_flags flags, float* value);
+bool aason_read_object_enum(aason_context* ctx, const char* key, aason_flags flags, int32_t* value, const char** strings, int32_t count);
 bool aason_read_object_constructor(aason_context* ctx, const char* key, aason_flags flags, void* value, const char* type);
 
 void aason_write_enter_root_array(aason_context* ctx);
@@ -244,9 +268,9 @@ void aason_write_array_dec(aason_context* ctx, int64_t value, int min_digits);
 void aason_write_array_hex(aason_context* ctx, int64_t value, int min_digits);
 void aason_write_array_bin(aason_context* ctx, int64_t value, int min_digits);
 void aason_write_array_bool(aason_context* ctx, bool value);
-void aason_write_array_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count);
 void aason_write_array_float(aason_context* ctx, float value);
-void aason_write_array_constructor(aason_context* ctx, const void* value);
+void aason_write_array_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count);
+void aason_write_array_constructor(aason_context* ctx, const void* value, const char* type);
 void aason_write_object_enter_array(aason_context* ctx, const char* key);
 void aason_write_object_enter_object(aason_context* ctx, const char* key);
 void aason_write_object_str(aason_context* ctx, const char* key, const char* value);
@@ -264,26 +288,36 @@ void aason_write_arg_dec(aason_context* ctx, int64_t value, int min_digits);
 void aason_write_arg_hex(aason_context* ctx, int64_t value, int min_digits);
 void aason_write_arg_bin(aason_context* ctx, int64_t value, int min_digits);
 void aason_write_arg_bool(aason_context* ctx, bool value);
-void aason_write_arg_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count);
 void aason_write_arg_float(aason_context* ctx, float value);
+void aason_write_arg_enum(aason_context* ctx, int32_t value, const char** strings, int32_t count);
 
+bool aason_archive_enter_root_array(aason_context* ctx, size_t* size);
+bool aason_archive_enter_root_object(aason_context* ctx);
+void aason_archive_leave_array(aason_context* ctx);
+void aason_archive_leave_object(aason_context* ctx);
 bool aason_archive_array_enter_object(aason_context* ctx);
-void aason_archive_array_str(aason_context* ctx, char** value);
 void aason_archive_array_fixed_str(aason_context* ctx, char* value, size_t buffer_size, bool truncate);
+void aason_archive_array_duplicated_str(aason_context* ctx, char** value);
 void aason_archive_array_int(aason_context* ctx, int64_t* value);
+void aason_archive_array_dec(aason_context* ctx, int64_t* value, int min_digits);
+void aason_archive_array_hex(aason_context* ctx, int64_t* value, int min_digits);
+void aason_archive_array_bin(aason_context* ctx, int64_t* value, int min_digits);
 void aason_archive_array_bool(aason_context* ctx, bool* value);
 void aason_archive_array_float(aason_context* ctx, float* value);
 void aason_archive_array_enum(aason_context* ctx, int32_t* value, const char** strings, int32_t count);
+void aason_archive_array_constructor(aason_context* ctx, void* value, const char* type);
 bool aason_archive_object_enter_array(aason_context* ctx, const char* key, size_t* size);
 bool aason_archive_object_enter_object(aason_context* ctx, const char* key);
-bool aason_archive_object_str(aason_context* ctx, const char* key, char** value, const char* default_value);
-bool aason_archive_object_fixed_str(aason_context* ctx, const char* key, char* value, const char* default_value, size_t buffer_size, bool truncate);
-bool aason_archive_object_int(aason_context* ctx, const char* key, int64_t* value, int64_t default_value);
-bool aason_archive_object_bool(aason_context* ctx, const char* key, bool* value, bool default_value);
-bool aason_archive_object_enum(aason_context* ctx, const char* key, int32_t* value, int32_t default_value, const char** strings, int32_t count);
-bool aason_archive_object_float(aason_context* ctx, const char* key, float* value, float default_value);
-void aason_archive_leave_array(aason_context* ctx);
-void aason_archive_leave_object(aason_context* ctx);
+bool aason_archive_object_fixed_str(aason_context* ctx, const char* key, char* value, size_t buffer_size, bool truncate);
+bool aason_archive_object_duplicated_str(aason_context* ctx, const char* key, char** value);
+bool aason_archive_object_int(aason_context* ctx, const char* key, int64_t* value);
+bool aason_archive_object_dec(aason_context* ctx, const char* key, int64_t* value, int min_digits);
+bool aason_archive_object_hex(aason_context* ctx, const char* key, int64_t* value, int min_digits);
+bool aason_archive_object_bin(aason_context* ctx, const char* key, int64_t* value, int min_digits);
+bool aason_archive_object_bool(aason_context* ctx, const char* key, bool* value);
+bool aason_archive_object_float(aason_context* ctx, const char* key, float* value);
+bool aason_archive_object_enum(aason_context* ctx, const char* key, int32_t* value, const char** strings, int32_t count);
+bool aason_archive_object_constructor(aason_context* ctx, const char* key, void* value, const char* type);
 
 #ifdef __cplusplus
 }
