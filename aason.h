@@ -228,13 +228,11 @@ bool aason_writing(const aason_context* ctx);
 void aason_error(aason_context* ctx, aason_error_type error, const char* format, ...);
 const char* aason_get_error_string(aason_error_type error);
 
-void* aason_alloc_value_impl(aason_context* ctx, size_t size, size_t align, const char* func, const char* file, int line);
-void aason_free_value_impl(aason_context* ctx, void* value, const char* func, const char* file, int line);
-
 bool aason_read_enter_root_array(aason_context* ctx, size_t* size, size_t max_size);
 bool aason_read_enter_root_object(aason_context* ctx);
 void aason_read_leave_array(aason_context* ctx);
 void aason_read_leave_object(aason_context* ctx);
+bool aason_read_array_enter_array(aason_context* ctx, size_t* size, size_t max_size);
 bool aason_read_array_enter_object(aason_context* ctx);
 bool aason_read_array_fixed_str(aason_context* ctx, char* value, size_t buffer_size, bool truncate);
 bool aason_read_array_borrowed_str(aason_context* ctx, const char** value, size_t* len);
@@ -261,6 +259,7 @@ void aason_write_enter_root_array(aason_context* ctx);
 void aason_write_enter_root_object(aason_context* ctx);
 void aason_write_leave_array(aason_context* ctx);
 void aason_write_leave_object(aason_context* ctx);
+void aason_write_array_enter_array(aason_context* ctx);
 void aason_write_array_enter_object(aason_context* ctx);
 void aason_write_array_str(aason_context* ctx, const char* value);
 void aason_write_array_int(aason_context* ctx, int64_t value);
@@ -295,6 +294,7 @@ bool aason_archive_enter_root_array(aason_context* ctx, size_t* size);
 bool aason_archive_enter_root_object(aason_context* ctx);
 void aason_archive_leave_array(aason_context* ctx);
 void aason_archive_leave_object(aason_context* ctx);
+bool aason_archive_array_enter_array(aason_context* ctx, size_t* size);
 bool aason_archive_array_enter_object(aason_context* ctx);
 void aason_archive_array_fixed_str(aason_context* ctx, char* value, size_t buffer_size, bool truncate);
 void aason_archive_array_duplicated_str(aason_context* ctx, char** value);
@@ -318,6 +318,9 @@ bool aason_archive_object_bool(aason_context* ctx, const char* key, bool* value)
 bool aason_archive_object_float(aason_context* ctx, const char* key, float* value);
 bool aason_archive_object_enum(aason_context* ctx, const char* key, int32_t* value, const char** strings, int32_t count);
 bool aason_archive_object_constructor(aason_context* ctx, const char* key, void* value, const char* type);
+
+void* aason_alloc_value_impl(aason_context* ctx, size_t size, size_t align, const char* func, const char* file, int line);
+void aason_free_value_impl(aason_context* ctx, void* value, const char* func, const char* file, int line);
 
 #ifdef __cplusplus
 }

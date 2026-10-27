@@ -3,7 +3,7 @@ bool aason_archive_enter_root_array(aason_context* ctx, size_t* size)
 	aason_assert(size);
 
 	if (ctx->reading)
-		return aason_read_enter_root_array(ctx, size, UINT32_MAX);
+		return aason_read_enter_root_array(ctx, size, SIZE_MAX);
 
 	aason_write_enter_root_array(ctx);
 	return true;
@@ -32,6 +32,15 @@ void aason_archive_leave_object(aason_context* ctx)
 		aason_read_leave_object(ctx);
 	else
 		aason_write_leave_object(ctx);
+}
+
+bool aason_archive_array_enter_array(aason_context* ctx, size_t* size)
+{
+	if (ctx->reading)
+		return aason_read_array_enter_array(ctx, size, SIZE_MAX);
+
+	aason_write_array_enter_array(ctx);
+	return true;
 }
 
 bool aason_archive_array_enter_object(aason_context* ctx)
@@ -146,7 +155,7 @@ bool aason_archive_object_enter_array(aason_context* ctx, const char* key, size_
 	aason_assert(size);
 
 	if (ctx->reading)
-		return aason_read_object_enter_array(ctx, key, aason_optional, size, UINT32_MAX);
+		return aason_read_object_enter_array(ctx, key, aason_optional, size, SIZE_MAX);
 
 	aason_write_object_enter_array(ctx, key);
 	return true;

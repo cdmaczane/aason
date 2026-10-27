@@ -528,6 +528,36 @@ void aason_read_leave_object(aason_context* ctx)
 	aason_read_leave_common(ctx, aason_type_object);
 }
 
+bool aason_read_array_enter_array(aason_context* ctx, size_t* size, size_t max_size)
+{
+	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_array);
+	if (element)
+	{
+		if (element->array_value.count > max_size)
+		{
+			aason_read_error(ctx, aason_error_array_too_large, element,
+				"Array size of %" PRIu32 " exceeds maximum of %zu",
+				element->array_value.count, max_size
+			);
+
+			return false;
+		}
+
+		const uint32_t stack_depth = ++ctx->stack_depth;
+		aason_assert(stack_depth < ctx->max_stack_depth);
+
+		ctx->stack[stack_depth].element_index = (uint32_t)(element - ctx->elements);
+		ctx->stack[stack_depth].child_index = 0;
+
+		if (size)
+			*size = element->array_value.count;
+
+		return true;
+	}
+
+	return false;
+}
+
 bool aason_read_array_enter_object(aason_context* ctx)
 {
 	const aason_element* element = aason_read_get_next_array_element(ctx, aason_type_object);

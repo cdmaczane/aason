@@ -305,6 +305,16 @@ void aason_write_leave_object(aason_context* ctx)
 	ctx->first = false;
 }
 
+void aason_write_array_enter_array(aason_context* ctx)
+{
+	char* out = aason_write_add_array_element(ctx, 0, 1);
+	*out++ = '[';
+	aason_write_commit(ctx, out);
+
+	++ctx->stack_depth;
+	ctx->first = true;
+}
+
 void aason_write_array_enter_object(aason_context* ctx)
 {
 	char* out = aason_write_add_array_element(ctx, 0, 1);
